@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%236366f1'%3E%3Cpath d='M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5'/%3E%3C/svg%3E" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#0B1120" />
+    <title>Samadhan Setu | Societal Innovation Collaboration Portal — Govt of Jharkhand (SIH 2026)</title>
+    <meta name="description" content="AI-driven platform crowdsourcing societal challenges across 24 Jharkhand districts, facilitating collaborative problem solving through university R&D and industry CSR partnerships. Smart India Hackathon 2026 — PS SIH26043." />
+    <meta name="keywords" content="Samadhan Setu, Smart India Hackathon 2026, SIH26043, Jharkhand, societal innovation, crowdsourcing, university partnerships, CSR, GIS heatmap, AI routing" />
+    <meta name="author" content="Government of Jharkhand — Dept of Higher & Technical Education" />
+
+    <!-- Open Graph / Social Sharing -->
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Samadhan Setu — Crowdsourcing Societal Solutions for Jharkhand" />
+    <meta property="og:description" content="AI-driven platform connecting citizens, universities & industry to solve grassroots challenges across 24 districts. SIH 2026 PS-43." />
+    <meta property="og:site_name" content="Samadhan Setu" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Samadhan Setu — Societal Innovation Portal" />
+    <meta name="twitter:description" content="Crowdsourcing challenges. Powering university & industry solutions. Govt of Jharkhand × SIH 2026." />
+
+    <!-- Google Fonts: Inter & Outfit -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <!-- Splash screen styles -->
+    <style>
+      #splash-loader {
+        position: fixed; inset: 0; z-index: 9999;
+        display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 20px;
+        background: #0B1120;
+        transition: opacity 0.5s ease, visibility 0.5s ease;
+      }
+      #splash-loader.fade-out { opacity: 0; visibility: hidden; }
+      .splash-spinner {
+        width: 40px; height: 40px;
+        border: 3px solid rgba(99,102,241,0.15);
+        border-top-color: #6366f1;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+      }
+      @keyframes spin { to { transform: rotate(360deg); } }
+      .splash-text {
+        font-family: 'Inter', system-ui, sans-serif;
+        font-size: 13px; font-weight: 600; letter-spacing: 0.5px;
+        color: rgba(148,163,184,0.8);
+      }
+    </style>
+  </head>
+  <body class="bg-[#0B1120] text-slate-100 font-sans antialiased selection:bg-indigo-500 selection:text-white min-h-screen">
+    <!-- Splash Loader -->
+    <div id="splash-loader">
+      <div class="splash-spinner"></div>
+      <span class="splash-text">Initializing Samadhan Setu…</span>
+    </div>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>
