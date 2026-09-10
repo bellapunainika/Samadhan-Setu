@@ -1,7 +1,7 @@
 import React from 'react';
 import { 
   Droplets, Wheat, HeartPulse, Leaf, Zap, Trees, GraduationCap, ShieldCheck, 
-  AlertTriangle, CheckCircle2, Clock, Flame, Sparkles
+  AlertTriangle, CheckCircle2, Clock, Flame, Sparkles, XCircle
 } from 'lucide-react';
 
 export const CategoryBadge = ({ category, className = "" }) => {
@@ -40,35 +40,40 @@ export const CategoryBadge = ({ category, className = "" }) => {
 
 export const StatusBadge = ({ status, className = "" }) => {
   const config = {
-    'Submitted': {
-      color: 'bg-slate-500/20 text-slate-300 border-slate-500/30',
-      icon: Clock
-    },
-    'Under Review': {
-      color: 'bg-amber-500/20 text-amber-300 border-amber-500/30',
-      icon: Clock
-    },
-    'Routed to University': {
-      color: 'bg-indigo-500/20 text-indigo-300 border-indigo-500/30',
-      icon: Sparkles
-    },
-    'In Progress': {
-      color: 'bg-blue-500/20 text-blue-300 border-blue-500/30',
-      icon: Flame
-    },
-    'Solved': {
-      color: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30',
-      icon: CheckCircle2
-    }
+    'SUBMITTED': { label: 'Submitted', color: 'bg-slate-500/20 text-slate-300 border-slate-500/30', icon: Clock },
+    'Submitted': { label: 'Submitted', color: 'bg-slate-500/20 text-slate-300 border-slate-500/30', icon: Clock },
+
+    'UNDER_REVIEW': { label: 'Under Review', color: 'bg-amber-500/20 text-amber-300 border-amber-500/30', icon: Clock },
+    'Under Review': { label: 'Under Review', color: 'bg-amber-500/20 text-amber-300 border-amber-500/30', icon: Clock },
+
+    'APPROVED': { label: 'Approved', color: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30', icon: CheckCircle2 },
+    'Approved': { label: 'Approved', color: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30', icon: CheckCircle2 },
+
+    'ASSIGNED': { label: 'Assigned', color: 'bg-indigo-500/20 text-indigo-300 border-indigo-500/30', icon: Sparkles },
+    'Assigned': { label: 'Assigned', color: 'bg-indigo-500/20 text-indigo-300 border-indigo-500/30', icon: Sparkles },
+    'Routed to University': { label: 'Assigned', color: 'bg-indigo-500/20 text-indigo-300 border-indigo-500/30', icon: Sparkles },
+
+    'REJECTED': { label: 'Rejected', color: 'bg-rose-500/20 text-rose-300 border-rose-500/30', icon: XCircle },
+    'Rejected': { label: 'Rejected', color: 'bg-rose-500/20 text-rose-300 border-rose-500/30', icon: XCircle },
+
+    'IN_PROGRESS': { label: 'In Progress', color: 'bg-blue-500/20 text-blue-300 border-blue-500/30', icon: Flame },
+    'In Progress': { label: 'In Progress', color: 'bg-blue-500/20 text-blue-300 border-blue-500/30', icon: Flame },
+
+    'SOLUTION_SUBMITTED': { label: 'Solution Submitted', color: 'bg-purple-500/20 text-purple-300 border-purple-500/30', icon: Sparkles },
+    'Solution Submitted': { label: 'Solution Submitted', color: 'bg-purple-500/20 text-purple-300 border-purple-500/30', icon: Sparkles },
+
+    'COMPLETED': { label: 'Completed', color: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30', icon: CheckCircle2 },
+    'Completed': { label: 'Completed', color: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30', icon: CheckCircle2 },
+    'Solved': { label: 'Completed', color: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30', icon: CheckCircle2 },
   };
 
-  const current = config[status] || config['Under Review'];
+  const current = config[status] || { label: status || 'Under Review', color: 'bg-amber-500/20 text-amber-300 border-amber-500/30', icon: Clock };
   const Icon = current.icon;
 
   return (
     <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border backdrop-blur-sm ${current.color} ${className}`}>
       <Icon className="w-3.5 h-3.5" />
-      <span>{status}</span>
+      <span>{current.label}</span>
     </span>
   );
 };

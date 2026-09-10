@@ -4,12 +4,43 @@ import { JHARKHAND_DISTRICTS } from '../data/jharkhandDistricts';
 import { MOCK_NOTIFICATIONS } from '../data/mockNotifications';
 import { TRANSLATIONS } from '../data/translations';
 import confetti from 'canvas-confetti';
+import {
+  login as apiLogin,
+  register as apiRegister,
+  logout as apiLogout,
+  fetchMe,
+  getStoredUser,
+  hasToken,
+} from '../services/authService';
 
 const AppContext = createContext();
 
+// ─── Role → dashboard path mapping ───────────────────────────────────────────
+const ROLE_DASHBOARD = {
+  citizen:    '/dashboard/citizen',
+  university: '/dashboard/university',
+  industry:   '/dashboard/industry',
+  admin:      '/dashboard/admin',
+};
+
+const ROLE_LABEL = {
+  citizen:    'Citizen',
+  university: 'University',
+  industry:   'Industry Partner',
+  admin:      'Government Admin',
+};
+
 export function AppProvider({ children }) {
-  // Global State
-  const [currentRole, setCurrentRole] = useState('citizen'); // 'citizen' | 'university' | 'industry' | 'admin'
+  // ─── Auth State ─────────────────────────────────────────────────────────────
+  // Initialise from localStorage so session survives page refresh
+  const [isLoggedIn, setIsLoggedIn] = useState(() => hasToken() && !!getStoredUser());
+  const [currentUser, setCurrentUser] = useState(() => getStoredUser()); // { id, email, full_name, role }
+  const [authLoading, setAuthLoading] = useState(() => hasToken()); // true while /me is in-flight
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+  const [pendingAfterLogin, setPendingAfterLogin] = useState(null);
+
+  // ─── Global State ────────────────────────────────────────────────────────────
+  const [currentRole, setCurrentRole] = useState(() => getStoredUser()?.role || null);
   const [language, setLanguage] = useState('en'); // 'en' | 'hi'
   const [currentPath, setCurrentPath] = useState(window.location.hash.replace('#', '') || '/');
   const [problems, setProblems] = useState(() => {
@@ -25,6 +56,30 @@ export function AppProvider({ children }) {
   useEffect(() => {
     localStorage.setItem('samadhan_problems', JSON.stringify(problems));
   }, [problems]);
+
+  // ── Session restore on mount ────────────────────────────────────────────────
+  // If a token exists in localStorage, verify it with the backend (/auth/me).
+  // This keeps the user logged in after a page refresh.
+  useEffect(() => {
+    if (!hasToken()) {
+      setAuthLoading(false);
+      return;
+    }
+    fetchMe()
+      .then((user) => {
+        if (user) {
+          setCurrentUser(user);
+          setCurrentRole(user.role);
+          setIsLoggedIn(true);
+        } else {
+          // Token was invalid — clear stale state
+          setIsLoggedIn(false);
+          setCurrentRole(null);
+          setCurrentUser(null);
+        }
+      })
+      .finally(() => setAuthLoading(false));
+  }, []); // runs once on mount
 
   // Sync route on hash change
   useEffect(() => {
@@ -63,7 +118,89 @@ export function AppProvider({ children }) {
     setToasts(prev => prev.filter(t => t.id !== id));
   };
 
-  // Upvote toggle
+  // ─── Auth Actions ────────────────────────────────────────────────────────────
+  /**
+   * loginAs — calls the real backend API, stores JWT, updates auth state.
+   * @param {string} _role  - selected role (used for UX only; backend role is the source of truth)
+   * @param {string} email
+   * @param {string} password
+   * @returns {Promise<{success: boolean, error?: string}>}
+   */
+  const loginAs = async (_role, email, password) => {
+    try {
+      const data = await apiLogin(email, password);
+      const user = { id: data.user_id, email: data.email, full_name: data.full_name, role: data.role };
+      setCurrentUser(user);
+      setCurrentRole(data.role);
+      setIsLoggedIn(true);
+      setIsLoginModalOpen(false);
+
+      const dashPath = ROLE_DASHBOARD[data.role] || '/';
+      navigate(dashPath);
+      showToast('Login Successful', `Welcome, ${data.full_name}! Signed in as ${ROLE_LABEL[data.role]}.`, 'success');
+      confetti({ particleCount: 40, spread: 60, origin: { y: 0.3 } });
+
+      if (pendingAfterLogin) {
+        setTimeout(() => {
+          pendingAfterLogin();
+          setPendingAfterLogin(null);
+        }, 300);
+      }
+
+      return { success: true };
+    } catch (err) {
+      const message = err.response?.data?.detail || 'Login failed. Please check your credentials.';
+      return { success: false, error: message };
+    }
+  };
+
+  /**
+   * registerUser — calls the public registration API.
+   * Does NOT auto-login; user must login after registering.
+   * @returns {Promise<{success: boolean, error?: string}>}
+   */
+  const registerUser = async (payload) => {
+    try {
+      await apiRegister(payload);
+      showToast('Account Created', 'Registration successful. Please log in.', 'success');
+      return { success: true };
+    } catch (err) {
+      const message = err.response?.data?.detail || 'Registration failed.';
+      return { success: false, error: message };
+    }
+  };
+
+  /** logout — clears JWT from localStorage and resets auth state */
+  const logout = () => {
+    apiLogout();
+    setIsLoggedIn(false);
+    setCurrentRole(null);
+    setCurrentUser(null);
+    navigate('/');
+    showToast('Logged Out', 'You have been signed out successfully.', 'info');
+  };
+
+  /**
+   * requireAuth — opens login modal if not logged in.
+   * Optionally stores a callback to run after successful login.
+   * @param {string|null} requiredRole - if set, also checks role
+   * @param {Function|null} afterLoginCallback
+   * @returns {boolean} true if already authenticated (or role matches)
+   */
+  const requireAuth = (requiredRole = null, afterLoginCallback = null) => {
+    if (!isLoggedIn) {
+      if (afterLoginCallback) setPendingAfterLogin(() => afterLoginCallback);
+      setIsLoginModalOpen(true);
+      return false;
+    }
+    if (requiredRole && currentRole !== requiredRole) {
+      showToast('Role Mismatch', `This section requires the "${requiredRole}" role.`, 'error');
+      return false;
+    }
+    return true;
+  };
+
+  // ─── Problem Actions ─────────────────────────────────────────────────────────
   const toggleUpvote = (problemId) => {
     setProblems(prev =>
       prev.map(p => {
@@ -71,11 +208,7 @@ export function AppProvider({ children }) {
           const hasUpvoted = !p.hasUpvoted;
           const upvotes = hasUpvoted ? p.upvotes + 1 : p.upvotes - 1;
           if (hasUpvoted) {
-            confetti({
-              particleCount: 30,
-              spread: 60,
-              origin: { y: 0.8 }
-            });
+            confetti({ particleCount: 30, spread: 60, origin: { y: 0.8 } });
             showToast('Endorsement Recorded', 'Thank you for prioritizing this grassroots issue!', 'success');
           }
           return { ...p, hasUpvoted, upvotes };
@@ -85,10 +218,8 @@ export function AppProvider({ children }) {
     );
   };
 
-  // Add new problem (called after AI processing)
   const addProblem = (newProblem) => {
     setProblems(prev => [newProblem, ...prev]);
-    // Also push notification
     const newNotif = {
       id: `notif-${Date.now()}`,
       title: 'New Problem Routed',
@@ -103,7 +234,6 @@ export function AppProvider({ children }) {
     confetti({ particleCount: 70, spread: 80, origin: { y: 0.6 } });
   };
 
-  // University Accept Challenge
   const acceptChallenge = (problemId, teamDetails) => {
     setProblems(prev =>
       prev.map(p => {
@@ -127,7 +257,6 @@ export function AppProvider({ children }) {
     confetti({ particleCount: 60, spread: 70 });
   };
 
-  // Update Kanban Stage
   const updateKanbanStage = (problemId, newStage) => {
     setProblems(prev =>
       prev.map(p => {
@@ -144,7 +273,6 @@ export function AppProvider({ children }) {
     showToast('Lifecycle Updated', `Project moved to "${newStage}" stage`, 'info');
   };
 
-  // Industry Express Interest / Pledge Grant
   const expressIndustryInterest = (problemId, interestDetails) => {
     setProblems(prev =>
       prev.map(p => {
@@ -166,7 +294,6 @@ export function AppProvider({ children }) {
     confetti({ particleCount: 50, spread: 60 });
   };
 
-  // Toggle milestone completion
   const toggleMilestone = (problemId, milestoneIndex) => {
     setProblems(prev =>
       prev.map(p => {
@@ -185,7 +312,6 @@ export function AppProvider({ children }) {
     showToast('Milestone Updated', 'Verification log recorded on state ledger', 'info');
   };
 
-  // Add comment / discussion
   const addComment = (problemId, text, authorRole) => {
     const roleLabels = {
       citizen: 'Citizen Advocate',
@@ -200,7 +326,6 @@ export function AppProvider({ children }) {
       text,
       time: 'Just now'
     };
-
     setProblems(prev =>
       prev.map(p => {
         if (p.id === problemId) {
@@ -212,7 +337,34 @@ export function AppProvider({ children }) {
     showToast('Comment Added', 'Message broadcasted to project stakeholders', 'info');
   };
 
-  // Mark notifications read
+  // Admin override actions
+  const adminReassignUniversity = (problemId, newUniversityName) => {
+    setProblems(prev =>
+      prev.map(p => {
+        if (p.id === problemId) {
+          return {
+            ...p,
+            assignedUniversity: { ...p.assignedUniversity, name: newUniversityName }
+          };
+        }
+        return p;
+      })
+    );
+    showToast('University Reassigned', `Challenge reassigned to ${newUniversityName}`, 'success');
+  };
+
+  const adminOverrideUrgency = (problemId, newScore) => {
+    setProblems(prev =>
+      prev.map(p => {
+        if (p.id === problemId) {
+          return { ...p, urgencyScore: newScore };
+        }
+        return p;
+      })
+    );
+    showToast('Urgency Score Updated', `Manual override applied: ${newScore}/100`, 'info');
+  };
+
   const markAllNotificationsRead = () => {
     setNotifications(prev => prev.map(n => ({ ...n, unread: false })));
   };
@@ -222,15 +374,41 @@ export function AppProvider({ children }) {
   return (
     <AppContext.Provider
       value={{
+        // Auth
+        isLoggedIn,
+        authLoading,
         currentRole,
+        currentUser,
         setCurrentRole,
+        loginAs,
+        registerUser,
+        logout,
+        requireAuth,
+        isLoginModalOpen,
+        setIsLoginModalOpen,
+        pendingAfterLogin,
+        setPendingAfterLogin,
+        // Language
         language,
         setLanguage,
+        t,
+        // Routing
         currentPath,
         navigate,
         navigateBack,
+        // Problems
         problems,
         setProblems,
+        toggleUpvote,
+        addProblem,
+        acceptChallenge,
+        updateKanbanStage,
+        expressIndustryInterest,
+        toggleMilestone,
+        addComment,
+        adminReassignUniversity,
+        adminOverrideUrgency,
+        // UI
         notifications,
         markAllNotificationsRead,
         toasts,
@@ -240,14 +418,7 @@ export function AppProvider({ children }) {
         setSelectedDistrict,
         isSubmitModalOpen,
         setIsSubmitModalOpen,
-        toggleUpvote,
-        addProblem,
-        acceptChallenge,
-        updateKanbanStage,
-        expressIndustryInterest,
-        toggleMilestone,
-        addComment,
-        t,
+        // Static data
         districts: JHARKHAND_DISTRICTS,
         stats: MOCK_STATS
       }}

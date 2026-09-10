@@ -16,9 +16,33 @@ export const HomePage = () => {
     problems, 
     stats, 
     navigate, 
-    setIsSubmitModalOpen, 
+    setIsSubmitModalOpen,
+    setIsLoginModalOpen,
+    setPendingAfterLogin,
+    isLoggedIn,
+    currentRole,
     t 
   } = useApp();
+
+  // Gate "Submit a Challenge" behind login — opens Login Modal if not authenticated,
+  // then automatically opens the submission form after successful login.
+  const handleSubmitClick = () => {
+    if (!isLoggedIn) {
+      setPendingAfterLogin(() => () => setIsSubmitModalOpen(true));
+      setIsLoginModalOpen(true);
+    } else {
+      setIsSubmitModalOpen(true);
+    }
+  };
+
+  // If already logged in, clicking a role card goes straight to their dashboard
+  const handleRoleEntry = (role, path) => {
+    if (isLoggedIn && currentRole === role) {
+      navigate(path);
+    } else {
+      setIsLoginModalOpen(true);
+    }
+  };
 
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
@@ -114,7 +138,7 @@ export const HomePage = () => {
             className="pt-4 flex flex-wrap items-center justify-center gap-4"
           >
             <button
-              onClick={() => setIsSubmitModalOpen(true)}
+              onClick={handleSubmitClick}
               className="px-7 py-3.5 rounded-2xl bg-gradient-to-r from-indigo-600 via-indigo-500 to-emerald-600 hover:from-indigo-500 hover:to-emerald-500 text-white font-extrabold text-sm shadow-xl shadow-indigo-500/25 flex items-center gap-2.5 transition-all hover:scale-105 active:scale-95"
             >
               <Sparkles className="w-4 h-4" />
@@ -241,17 +265,17 @@ export const HomePage = () => {
             Tailored Stakeholder Portals
           </span>
           <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
-            Enter as a Collaborator
+            Sign In to Collaborate
           </h2>
+          <p className="text-xs text-slate-400">
+            Each role unlocks a personalised dashboard, workflow tools, and collaboration features.
+          </p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           {/* Citizen */}
           <div
-            onClick={() => {
-              setCurrentRole('citizen');
-              navigate('/dashboard/citizen');
-            }}
+            onClick={() => handleRoleEntry('citizen', '/dashboard/citizen')}
             className="p-6 rounded-3xl bg-slate-900/80 border border-blue-500/30 hover:border-blue-500 cursor-pointer transition-all hover:scale-[1.02] group space-y-3"
           >
             <div className="p-3 rounded-2xl bg-blue-500/20 text-blue-400 w-fit">
@@ -268,10 +292,7 @@ export const HomePage = () => {
 
           {/* University */}
           <div
-            onClick={() => {
-              setCurrentRole('university');
-              navigate('/dashboard/university');
-            }}
+            onClick={() => handleRoleEntry('university', '/dashboard/university')}
             className="p-6 rounded-3xl bg-slate-900/80 border border-indigo-500/30 hover:border-indigo-500 cursor-pointer transition-all hover:scale-[1.02] group space-y-3"
           >
             <div className="p-3 rounded-2xl bg-indigo-500/20 text-indigo-400 w-fit">
@@ -288,10 +309,7 @@ export const HomePage = () => {
 
           {/* Industry */}
           <div
-            onClick={() => {
-              setCurrentRole('industry');
-              navigate('/dashboard/industry');
-            }}
+            onClick={() => handleRoleEntry('industry', '/dashboard/industry')}
             className="p-6 rounded-3xl bg-slate-900/80 border border-emerald-500/30 hover:border-emerald-500 cursor-pointer transition-all hover:scale-[1.02] group space-y-3"
           >
             <div className="p-3 rounded-2xl bg-emerald-500/20 text-emerald-400 w-fit">
@@ -308,10 +326,7 @@ export const HomePage = () => {
 
           {/* Admin */}
           <div
-            onClick={() => {
-              setCurrentRole('admin');
-              navigate('/dashboard/admin');
-            }}
+            onClick={() => handleRoleEntry('admin', '/dashboard/admin')}
             className="p-6 rounded-3xl bg-slate-900/80 border border-amber-500/30 hover:border-amber-500 cursor-pointer transition-all hover:scale-[1.02] group space-y-3"
           >
             <div className="p-3 rounded-2xl bg-amber-500/20 text-amber-400 w-fit">

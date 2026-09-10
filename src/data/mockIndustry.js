@@ -10,6 +10,7 @@ export const MOCK_INDUSTRY = [
     totalPledged: "₹6.8 Cr",
     activeMoUs: 12,
     focusAreas: ["Water Security", "Elephant Conflict Mitigation", "Tribal Health", "Silicosis Prevention"],
+    verified: true,
     contactEmail: "csr.innovation@tatasteel.com",
     logo: "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=120&auto=format&fit=crop&q=60"
   },
@@ -22,6 +23,7 @@ export const MOCK_INDUSTRY = [
     totalPledged: "₹5.2 Cr",
     activeMoUs: 9,
     focusAreas: ["Acid Mine Drainage", "Fly Ash Utilization", "Overburden Revegetation"],
+    verified: true,
     contactEmail: "sustainability@coalindia.in",
     logo: "https://images.unsplash.com/photo-1579783900882-c0d3dad7b119?w=120&auto=format&fit=crop&q=60"
   },
@@ -34,6 +36,7 @@ export const MOCK_INDUSTRY = [
     totalPledged: "₹3.4 Cr",
     activeMoUs: 6,
     focusAreas: ["Biomass Gasification", "Iron Removal Filters", "Vocational Training"],
+    verified: true,
     contactEmail: "csr@patratu.jspl.com",
     logo: "https://images.unsplash.com/photo-1497366216548-37526070297c?w=120&auto=format&fit=crop&q=60"
   },
@@ -46,6 +49,7 @@ export const MOCK_INDUSTRY = [
     totalPledged: "₹4.1 Cr",
     activeMoUs: 11,
     focusAreas: ["Solar Cold Storage", "Lac Value Chain", "Millet Processing"],
+    verified: false,
     contactEmail: "ranchi@nabard.org",
     logo: "https://images.unsplash.com/photo-1560179707-f14e90ef3623?w=120&auto=format&fit=crop&q=60"
   },
@@ -58,6 +62,7 @@ export const MOCK_INDUSTRY = [
     totalPledged: "₹2.9 Cr",
     activeMoUs: 8,
     focusAreas: ["Women SHG Enterprise", "Organic Honey Processing", "Micro-Irrigation"],
+    verified: true,
     contactEmail: "ceo@jslps.in",
     logo: "https://images.unsplash.com/photo-1542744173-8e7e53415bb0?w=120&auto=format&fit=crop&q=60"
   }

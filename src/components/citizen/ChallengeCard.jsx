@@ -13,12 +13,18 @@ export const ChallengeCard = ({ problem }) => {
   const stages = [
     'Submitted',
     'Under Review',
-    'Routed to University',
-    'In Progress',
-    'Solved'
+    'Approved',
+    'Assigned',
+    'Completed'
   ];
 
-  const currentStageIdx = stages.indexOf(problem.status) !== -1 ? stages.indexOf(problem.status) : 2;
+  const statusKey = (problem.rawStatus || problem.status || '').toUpperCase();
+  let currentStageIdx = 1; // Default to Under Review
+  if (statusKey === 'APPROVED' || problem.status === 'Approved') currentStageIdx = 2;
+  else if (statusKey === 'ASSIGNED' || statusKey === 'ROUTED TO UNIVERSITY' || problem.status === 'Assigned') currentStageIdx = 3;
+  else if (statusKey === 'IN_PROGRESS' || statusKey === 'SOLUTION_SUBMITTED') currentStageIdx = 3;
+  else if (statusKey === 'COMPLETED' || statusKey === 'SOLVED') currentStageIdx = 4;
+
 
   return (
     <motion.div

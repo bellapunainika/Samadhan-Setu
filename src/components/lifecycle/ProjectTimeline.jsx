@@ -5,14 +5,16 @@ import { CheckCircle2, Clock, ShieldCheck, Award, FileText, Download, Check } fr
 export const ProjectTimeline = ({ problem }) => {
   const { toggleMilestone, currentRole } = useApp();
 
+  const isUnderReview = problem.status === 'Under Review' || problem.rawStatus === 'UNDER_REVIEW' || problem.status === 'UNDER_REVIEW';
+
   const lifecycleStages = [
     { name: '1. Problem Identified & Crowdsourced', desc: 'Verified ground coordinates & citizen endorsement', done: true },
-    { name: '2. AI Clustering & University Routing', desc: 'Vector deduplication & faculty lab matching', done: true },
-    { name: '3. R&D Team Formed & Milestone Scope', desc: 'Principal Investigator & Student researchers locked', done: problem.status !== 'Under Review' },
-    { name: '4. Lab Bench-Scale Prototyping', desc: 'Material formulation & simulated stress testing', done: ['In Progress', 'Testing', 'Submitted for Review', 'Solved'].includes(problem.status) || problem.kanbanStage !== 'To Do' },
-    { name: '5. Industry CSR Partner Onboarded', desc: 'Tripartite MoU signed & pilot funding committed', done: !!problem.industryPartner?.name && problem.industryPartner?.name !== 'Pending Industry Match' },
-    { name: '6. Field Demonstration & Panchayat Trial', desc: 'Live operational trial under rural field conditions', done: ['Testing', 'Submitted for Review', 'Solved'].includes(problem.kanbanStage) || problem.status === 'Solved' },
-    { name: '7. Patent / IP & Regulatory Filing', desc: 'Indian Patent Office filing & Pollution Board standards', done: problem.status === 'Solved' || problem.patentsFiled !== 'None' },
+    { name: '2. AI Clustering & University Routing', desc: 'Vector deduplication & faculty lab matching', done: !isUnderReview },
+    { name: '3. R&D Team Formed & Milestone Scope', desc: 'Principal Investigator & Student researchers locked', done: !isUnderReview && problem.status !== 'Routed to University' },
+    { name: '4. Lab Bench-Scale Prototyping', desc: 'Material formulation & simulated stress testing', done: !isUnderReview && (['In Progress', 'Testing', 'Submitted for Review', 'Solved'].includes(problem.status) || problem.kanbanStage !== 'To Do') },
+    { name: '5. Industry CSR Partner Onboarded', desc: 'Tripartite MoU signed & pilot funding committed', done: !isUnderReview && !!problem.industryPartner?.name && problem.industryPartner?.name !== 'Pending Industry Match' },
+    { name: '6. Field Demonstration & Panchayat Trial', desc: 'Live operational trial under rural field conditions', done: !isUnderReview && (['Testing', 'Submitted for Review', 'Solved'].includes(problem.kanbanStage) || problem.status === 'Solved') },
+    { name: '7. Patent / IP & Regulatory Filing', desc: 'Indian Patent Office filing & Pollution Board standards', done: !isUnderReview && (problem.status === 'Solved' || (problem.patentsFiled && problem.patentsFiled !== 'None')) },
     { name: '8. Statewide Commercial Scale-up', desc: 'Full adoption across targeted Jharkhand districts', done: problem.status === 'Solved' }
   ];
 
@@ -26,7 +28,7 @@ export const ProjectTimeline = ({ problem }) => {
             <span>Jharkhand Innovation Lifecycle Pipeline (8 Stages)</span>
           </h4>
           <span className="text-xs font-mono text-emerald-400 bg-emerald-500/10 px-2.5 py-0.5 rounded-full border border-emerald-500/30">
-            {problem.trlLevel || 'TRL 6 Prototype'}
+            {problem.trlLevel ? problem.trlLevel : (isUnderReview ? 'TRL-1 Intake' : 'TRL 6 Prototype')}
           </span>
         </div>
 
