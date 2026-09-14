@@ -20,6 +20,7 @@ class ChallengeStatus(str, enum.Enum):
     ASSIGNED          = "ASSIGNED"
     IN_PROGRESS       = "IN_PROGRESS"
     SOLUTION_SUBMITTED = "SOLUTION_SUBMITTED"
+    SOLUTION_APPROVED  = "SOLUTION_APPROVED"
     COMPLETED         = "COMPLETED"
     VALIDATED         = "VALIDATED"
 

@@ -26,6 +26,10 @@ class ChallengeAssignment(Base):
     status = Column(String(50), default="ACTIVE", nullable=False) # ACTIVE, RESCINDED
     notes = Column(Text, nullable=True)
 
+    team_name = Column(String(255), nullable=True)
+    faculty_mentor = Column(String(255), nullable=True)
+    student_members = Column(Text, nullable=True) # JSON or comma-separated list
+
     challenge = relationship("Challenge", back_populates="assignment")
     university = relationship("University", foreign_keys=[university_id])
     assigner = relationship("User", foreign_keys=[assigned_by])

@@ -9,3 +9,4 @@ from app.models.audit import AdminAction  # noqa: F401
 from app.models.solution import SolutionSubmission, SolutionStatus  # noqa: F401
 from app.models.progress import ProgressUpdate  # noqa: F401
 from app.models.industry import IndustryInterest, IndustryInterestStatus  # noqa: F401
+from app.models.query import ChallengeQuery, QueryStatus  # noqa: F401

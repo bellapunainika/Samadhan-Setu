@@ -24,3 +24,13 @@ export async function getIndustryStats() {
   const { data } = await api.get('/industry/stats');
   return data;
 }
+
+export async function getIndustryHistory() {
+  const { data } = await api.get('/industry/history');
+  return data;
+}
+
+export async function updateProposalStatus(requestId, payload) {
+  const { data } = await api.post(`/industry/proposals/${requestId}/update-status`, payload);
+  return data;
+}

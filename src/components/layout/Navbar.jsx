@@ -11,14 +11,16 @@ const ROLE_ICONS = {
   citizen: Users,
   university: GraduationCap,
   industry: Building2,
-  admin: Shield
+  admin: Shield,
+  officer: Shield
 };
 
 const ROLE_COLORS = {
   citizen: 'text-blue-400',
   university: 'text-indigo-400',
   industry: 'text-emerald-400',
-  admin: 'text-amber-400'
+  admin: 'text-amber-400',
+  officer: 'text-teal-400'
 };
 
 export const Navbar = () => {
@@ -75,6 +77,7 @@ export const Navbar = () => {
       university: '/dashboard/university',
       industry: '/dashboard/industry',
       admin: '/dashboard/admin',
+      officer: '/dashboard/officer',
     };
     const targetPath = roleDashboardMap[currentRole] || '/';
     navigate(targetPath);

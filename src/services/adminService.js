@@ -10,6 +10,11 @@ export async function getPendingChallenges() {
   return data;
 }
 
+export async function getPipelineChallenges(tab = 'all') {
+  const { data } = await api.get(`/admin/challenges?tab=${tab}`);
+  return data;
+}
+
 export async function getApprovedChallenges() {
   const { data } = await api.get('/admin/challenges/approved');
   return data;

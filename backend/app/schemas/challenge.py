@@ -80,6 +80,9 @@ class AssignmentOut(BaseModel):
     university_name: Optional[str] = None
     assigned_at: datetime
     notes: Optional[str] = None
+    team_name: Optional[str] = None
+    faculty_mentor: Optional[str] = None
+    student_members: Optional[str] = None
 
     model_config = {"from_attributes": True}
 

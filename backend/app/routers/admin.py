@@ -41,6 +41,45 @@ def require_admin(current_user: User = Depends(get_current_user)) -> User:
     return current_user
 
 
+def require_admin_or_officer(current_user: User = Depends(get_current_user)) -> User:
+    """Authorization guard: Enforce Admin or Officer role (read-only oversight)."""
+    if current_user.role not in (UserRole.admin, UserRole.officer):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="State Administrative or Oversight privileges required for this action."
+        )
+    return current_user
+
+
+@router.get(
+    "/challenges",
+    response_model=List[ChallengeOut],
+    summary="Get challenges filtered by pipeline tab for Admin/Officer dashboard"
+)
+def get_admin_pipeline_challenges(
+    tab: Optional[str] = "all",
+    current_user: User = Depends(require_admin_or_officer),
+    db: Session = Depends(get_db)
+):
+    query = db.query(Challenge)
+    if tab == "pending":
+        query = query.filter(Challenge.status == ChallengeStatus.UNDER_REVIEW)
+    elif tab == "assigned":
+        query = query.filter(Challenge.status == ChallengeStatus.ASSIGNED)
+    elif tab == "in_progress":
+        query = query.filter(Challenge.status == ChallengeStatus.IN_PROGRESS)
+    elif tab == "solution_review":
+        query = query.filter(Challenge.status == ChallengeStatus.SOLUTION_SUBMITTED)
+    elif tab == "industry_support":
+        query = query.filter(Challenge.status == ChallengeStatus.SOLUTION_APPROVED)
+    elif tab == "completed":
+        query = query.filter(Challenge.status.in_([ChallengeStatus.COMPLETED, ChallengeStatus.VALIDATED]))
+    elif tab == "rejected":
+        query = query.filter(Challenge.status == ChallengeStatus.REJECTED)
+    
+    return query.order_by(Challenge.updated_at.desc()).all()
+
+
 @router.get(
     "/challenges/pending",
     response_model=List[ChallengeOut],
@@ -312,11 +351,11 @@ def assign_university(
             detail="Challenge is already assigned to a university."
         )
 
-    # 2. Verify Status is APPROVED
-    if challenge.status != ChallengeStatus.APPROVED:
+    # 2. Verify Status is APPROVED or UNDER_REVIEW
+    if challenge.status not in (ChallengeStatus.APPROVED, ChallengeStatus.UNDER_REVIEW):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Cannot assign challenge with status '{challenge.status}'. Must be APPROVED."
+            detail=f"Cannot assign challenge with status '{challenge.status}'. Must be UNDER_REVIEW or APPROVED."
         )
 
     # 3. Verify Target University Exists and is Active
@@ -472,7 +511,7 @@ def review_solution(
     old_status = str(challenge.status)
 
     if action_upper == "ACCEPT":
-        challenge.status = ChallengeStatus.COMPLETED
+        challenge.status = ChallengeStatus.SOLUTION_APPROVED
         if solution:
             solution.status = SolutionStatus.ACCEPTED
             solution.admin_feedback = payload.feedback or "Solution approved by State Governance Admin."
@@ -485,8 +524,8 @@ def review_solution(
             entity_type="CHALLENGE",
             entity_id=str(challenge.short_id),
             old_value={"status": old_status},
-            new_value={"status": "COMPLETED"},
-            reason=payload.feedback or "Solution validated and accepted."
+            new_value={"status": "SOLUTION_APPROVED"},
+            reason=payload.feedback or "Solution validated and approved."
         )
         db.add(audit)
 
@@ -554,6 +593,10 @@ def review_industry_request(
     action_upper = payload.action.upper()
     if action_upper == "ACCEPT":
         req.status = IndustryInterestStatus.ACCEPTED
+        challenge = db.query(Challenge).filter(Challenge.id == req.challenge_id).first()
+        if challenge:
+            challenge.status = ChallengeStatus.COMPLETED
+            challenge.updated_at = datetime.now(timezone.utc)
     elif action_upper in ("DECLINE", "REJECT"):
         req.status = IndustryInterestStatus.DECLINED
     else:

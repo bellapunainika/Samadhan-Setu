@@ -12,6 +12,7 @@ import { CitizenDashboardPage } from './pages/CitizenDashboardPage';
 import { UniversityDashboardPage } from './pages/UniversityDashboardPage';
 import { IndustryDashboardPage } from './pages/IndustryDashboardPage';
 import { AdminAnalyticsPage } from './pages/AdminAnalyticsPage';
+import { GovtOfficerDashboardPage } from './pages/GovtOfficerDashboardPage';
 import { ProjectDetailsPage } from './pages/ProjectDetailsPage';
 import { ProblemSubmitModal } from './components/citizen/ProblemSubmitModal';
 import { LoginModal } from './components/auth/LoginModal';
@@ -57,6 +58,8 @@ function AppContent() {
         return <IndustryDashboardPage />;
       case '/dashboard/admin':
         return <AdminAnalyticsPage />;
+      case '/dashboard/officer':
+        return <GovtOfficerDashboardPage />;
       case '/':
       default:
         return <HomePage />;

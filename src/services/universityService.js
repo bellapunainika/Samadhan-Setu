@@ -34,3 +34,18 @@ export async function getUniversityStats() {
   const { data } = await api.get('/universities/stats');
   return data;
 }
+
+export async function configureTeam(challengeId, payload) {
+  const { data } = await api.post(`/universities/challenges/${challengeId}/team`, payload);
+  return data;
+}
+
+export async function requestIndustrySupport(challengeId, payload) {
+  const { data } = await api.post(`/universities/challenges/${challengeId}/request-industry-support`, payload);
+  return data;
+}
+
+export async function getUniversityIndustryInterests() {
+  const { data } = await api.get('/universities/industry-interests');
+  return data;
+}

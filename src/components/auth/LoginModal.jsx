@@ -50,11 +50,31 @@ const ROLE_CONFIG = [
     ring: 'ring-amber-500/40',
     textColor: 'text-amber-400',
     bg: 'bg-amber-500/10'
+  },
+  {
+    id: 'officer',
+    icon: Shield,
+    emoji: '🏛️',
+    color: 'from-teal-600 to-emerald-600',
+    border: 'border-teal-500/50',
+    glow: 'shadow-teal-500/20',
+    ring: 'ring-teal-500/40',
+    textColor: 'text-teal-400',
+    bg: 'bg-teal-500/10'
   }
 ];
 
-// Admin cannot self-register — only login
-const REGISTER_BLOCKED_ROLES = new Set(['admin']);
+const DEMO_ACCOUNTS = [
+  { role: 'citizen', name: 'Demo Citizen', email: 'citizen@samadhan.gov.in', pass: 'Password123!' },
+  { role: 'university', name: 'Demo Univ A (BIT)', email: 'solver@bitmesra.ac.in', pass: 'Password123!' },
+  { role: 'university', name: 'Demo Univ B (IIT)', email: 'solver@iitdhanbad.ac.in', pass: 'Password123!' },
+  { role: 'industry', name: 'Demo Industry (Tata)', email: 'csr@tatasteel.com', pass: 'Password123!' },
+  { role: 'admin', name: 'Demo State Admin', email: 'admin@samadhan.gov.in', pass: 'Nainika@00' },
+  { role: 'officer', name: 'Demo Govt Officer', email: 'officer@samadhan.gov.in', pass: 'Password123!' }
+];
+
+// Admin and Officer cannot self-register — only login
+const REGISTER_BLOCKED_ROLES = new Set(['admin', 'officer']);
 
 export const LoginModal = ({ isOpen, onClose }) => {
   const { t, loginAs, registerUser } = useApp();
@@ -113,6 +133,22 @@ export const LoginModal = ({ isOpen, onClose }) => {
     resetForm();
     setEmail(regEmail); // carry email back
     setPhase('login');
+  };
+
+  const handleDemoLogin = async (demo) => {
+    const roleCfg = ROLE_CONFIG.find(r => r.id === demo.role) || ROLE_CONFIG[0];
+    setSelectedRole(roleCfg);
+    setEmail(demo.email);
+    setPassword(demo.pass);
+    setError('');
+    setIsLoading(true);
+    const result = await loginAs(demo.role, demo.email, demo.pass);
+    setIsLoading(false);
+    if (!result.success) {
+      setError(result.error || 'Demo login failed.');
+    } else {
+      handleClose();
+    }
   };
 
   const handleClose = () => {
@@ -242,6 +278,31 @@ export const LoginModal = ({ isOpen, onClose }) => {
                   </motion.div>
                 )}
               </AnimatePresence>
+            </div>
+
+            {/* Quick Demo Logins Bar */}
+            <div className="px-8 pb-3">
+              <div className="p-3 rounded-2xl bg-indigo-950/40 border border-indigo-500/20 backdrop-blur">
+                <div className="flex items-center justify-between mb-2 px-1">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-indigo-300">⚡ Quick Demo Accounts (SIH Evaluator)</span>
+                  <span className="text-[10px] text-slate-400">Authenticates via Backend JWT</span>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
+                  {DEMO_ACCOUNTS.map((d, i) => (
+                    <button
+                      key={i}
+                      type="button"
+                      disabled={isLoading}
+                      onClick={() => handleDemoLogin(d)}
+                      className="px-2.5 py-1.5 rounded-lg bg-slate-900/80 hover:bg-indigo-600/30 border border-slate-700/60 hover:border-indigo-400/50 text-[11px] font-semibold text-slate-200 hover:text-white transition-all text-left truncate flex items-center justify-between"
+                      title={`${d.name} (${d.email})`}
+                    >
+                      <span className="truncate">{d.name}</span>
+                      <ArrowRight className="w-3 h-3 text-indigo-400 shrink-0 ml-1" />
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
 
             {/* Body */}

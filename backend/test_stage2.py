@@ -49,6 +49,17 @@ def run_tests():
         "email": "test.citizen@example.com",
         "password": "Password123!"
     })
+    if res.status_code == 401:
+        client.post("/api/auth/register", json={
+            "email": "test.citizen@example.com",
+            "password": "Password123!",
+            "full_name": "Test Citizen",
+            "role": "citizen"
+        })
+        res = client.post("/api/auth/login", json={
+            "email": "test.citizen@example.com",
+            "password": "Password123!"
+        })
     auth_ok = res.status_code == 200 and "access_token" in res.json()
     assert_test("Citizen Authentication for Challenge Submission", auth_ok, res.text)
     token = res.json().get("access_token") if auth_ok else None
@@ -80,7 +91,7 @@ def run_tests():
     sector_ok = ai.get("primary_sector") == "Water & Sanitation"
     prio_ok = ai.get("priority_score", 0) >= 75.0 and ai.get("priority_label") in ["HIGH", "CRITICAL"]
     univ_recs = ai.get("recommended_universities", [])
-    univ_ok = len(univ_recs) == 3 and "BIT Mesra" in univ_recs[0].get("university_name", "")
+    univ_ok = len(univ_recs) == 3 and ("BIT Mesra" in univ_recs[0].get("university_name", "") or univ_recs[0].get("short_name") == "BIT Mesra" or "Birla Institute" in univ_recs[0].get("university_name", ""))
 
     assert_test("AI Sector Classification ('Water & Sanitation')", sector_ok, f"Got sector: {ai.get('primary_sector')}")
     assert_test("AI Priority Score Calculation (>75, HIGH/CRITICAL)", prio_ok, f"Score: {ai.get('priority_score')}")

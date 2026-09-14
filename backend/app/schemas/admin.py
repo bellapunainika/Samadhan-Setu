@@ -10,6 +10,7 @@ from app.models.challenge import PriorityLabel
 
 class ChallengeApproveRequest(BaseModel):
     reason: Optional[str] = "Approved after state nodal administrative review."
+    university_id: Optional[uuid.UUID] = None
 
 
 class ChallengeRejectRequest(BaseModel):

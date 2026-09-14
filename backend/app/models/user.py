@@ -25,6 +25,7 @@ class UserRole(str, enum.Enum):
     university = "university"
     industry   = "industry"
     admin      = "admin"
+    officer    = "officer"
 
 
 # Roles that can self-register via the public API

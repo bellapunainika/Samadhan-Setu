@@ -18,6 +18,7 @@ from app.routers import uploads as uploads_router
 from app.routers import admin as admin_router
 from app.routers import universities as universities_router
 from app.routers import industry as industry_router
+from app.routers import queries as queries_router
 
 settings = get_settings()
 
@@ -48,6 +49,7 @@ app.include_router(uploads_router.router)
 app.include_router(admin_router.router)
 app.include_router(universities_router.router)
 app.include_router(industry_router.router)
+app.include_router(queries_router.router)
 
 
 # ── Health Check ──────────────────────────────────────────────────────────────

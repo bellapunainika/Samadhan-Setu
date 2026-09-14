@@ -511,6 +511,43 @@ export const ProjectDetailsPage = ({ problemId }) => {
         </div>
       )}
 
+      {/* Industry Support Public Outcome Card (Citizen & Public View) */}
+      {problem.industryInterests && problem.industryInterests.some(i => ['SUPPORT_CONFIRMED', 'FUNDING_CONFIRMED', 'PROJECT_FUNDED', 'ACCEPTED'].includes(i.status)) && (
+        <div className="p-6 rounded-3xl bg-gradient-to-r from-emerald-950/40 via-slate-900 to-teal-950/40 border border-emerald-500/40 backdrop-blur-xl space-y-4 text-left">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <HandCoins className="w-5 h-5 text-emerald-400" />
+              <h3 className="text-base font-bold text-white">Corporate Industry Support &amp; Outcome Summary</h3>
+            </div>
+            <span className="px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-xs font-extrabold flex items-center gap-1">
+              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+              <span>Industry Support: CONFIRMED</span>
+            </span>
+          </div>
+
+          {problem.industryInterests.filter(i => ['SUPPORT_CONFIRMED', 'FUNDING_CONFIRMED', 'PROJECT_FUNDED', 'ACCEPTED'].includes(i.status)).map((item, idx) => (
+            <div key={idx} className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 p-4 rounded-2xl bg-slate-950/70 border border-slate-800 text-xs">
+              <div>
+                <span className="text-[10px] text-slate-400 font-bold uppercase block">Funded/Supported By</span>
+                <span className="font-bold text-emerald-300 text-sm">{item.company_name}</span>
+              </div>
+              <div>
+                <span className="text-[10px] text-slate-400 font-bold uppercase block">Supported University</span>
+                <span className="font-bold text-indigo-300 text-sm">{problem.assignedUniversity?.name || 'BIT Mesra'}</span>
+              </div>
+              <div>
+                <span className="text-[10px] text-slate-400 font-bold uppercase block">Support Type</span>
+                <span className="font-bold text-white text-xs">{item.support_type}</span>
+              </div>
+              <div>
+                <span className="text-[10px] text-slate-400 font-bold uppercase block">Project Status</span>
+                <span className="font-bold text-teal-400 text-xs">{problem.rawStatus === 'COMPLETED' ? 'PROBLEM RESOLVED' : 'ACTIVE FUNDED DEPLOYMENT'}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* 2-Column Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         {/* Left Column (7 cols) */}

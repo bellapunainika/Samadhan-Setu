@@ -11,9 +11,15 @@ from app.database import Base
 
 
 class IndustryInterestStatus(str, enum.Enum):
-    PENDING_ADMIN_REVIEW = "PENDING_ADMIN_REVIEW"
-    ACCEPTED             = "ACCEPTED"
-    DECLINED             = "DECLINED"
+    FUNDING_INTEREST          = "FUNDING_INTEREST"
+    PROPOSAL_INITIATED        = "PROPOSAL_INITIATED"
+    PROPOSAL_UNDER_DISCUSSION = "PROPOSAL_UNDER_DISCUSSION"
+    SUPPORT_CONFIRMED         = "SUPPORT_CONFIRMED"
+    FUNDING_CONFIRMED         = "FUNDING_CONFIRMED"
+    PROJECT_FUNDED            = "PROJECT_FUNDED"
+    PENDING_ADMIN_REVIEW      = "PENDING_ADMIN_REVIEW"
+    ACCEPTED                  = "ACCEPTED"
+    DECLINED                  = "DECLINED"
 
 
 class IndustryInterest(Base):
@@ -26,11 +32,13 @@ class IndustryInterest(Base):
     company_name = Column(String(255), nullable=False)
     contact_email = Column(String(255), nullable=False)
     support_type = Column(String(100), default="CSR Funding & Mentorship", nullable=False)
+    pledged_amount = Column(String(100), nullable=True)
+    proposal_summary = Column(Text, nullable=True)
     message = Column(Text, nullable=False)
 
     status = Column(
         SAEnum(IndustryInterestStatus, name="industryintereststatus"),
-        default=IndustryInterestStatus.PENDING_ADMIN_REVIEW,
+        default=IndustryInterestStatus.FUNDING_INTEREST,
         nullable=False
     )
     admin_response = Column(Text, nullable=True)
@@ -41,7 +49,14 @@ class IndustryInterest(Base):
         default=lambda: datetime.now(timezone.utc),
         nullable=False,
     )
+    updated_at = Column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
     reviewed_at = Column(DateTime(timezone=True), nullable=True)
+    confirmed_at = Column(DateTime(timezone=True), nullable=True)
 
     challenge = relationship("Challenge")
     industry_user = relationship("User", foreign_keys=[industry_user_id])

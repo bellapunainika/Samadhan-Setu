@@ -2,7 +2,7 @@
 routers/universities.py — Stage 3 University Discovery & Assignment Endpoints.
 Includes: Available Challenges (APPROVED & unassigned) and My Assigned Challenges (scoped to authenticated university).
 """
-from typing import List
+from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
@@ -12,6 +12,7 @@ from app.models.university import University
 from app.models.challenge import Challenge, ChallengeStatus
 from app.models.assignment import ChallengeAssignment
 from app.schemas.challenge import ChallengeOut
+from app.schemas.industry import IndustryInterestOut
 from app.auth.dependencies import get_current_user
 
 router = APIRouter(prefix="/api/universities", tags=["University R&D Solvers"])
@@ -313,3 +314,143 @@ def get_university_stats(
         "solutions_submitted": solutions_submitted_count,
         "completed": completed_count
     }
+
+
+from pydantic import BaseModel
+
+class TeamConfigRequest(BaseModel):
+    team_name: str
+    faculty_mentor: str
+    student_members: str
+
+
+class IndustrySupportRequestPayload(BaseModel):
+    support_type: str = "CSR Funding & Mentorship"
+    requested_amount: Optional[str] = None
+    purpose: str
+    message: str
+
+
+@router.post(
+    "/challenges/{challenge_identifier}/team",
+    summary="Configure research team for an assigned challenge"
+)
+def configure_team(
+    challenge_identifier: str,
+    payload: TeamConfigRequest,
+    user: User = Depends(require_university),
+    db: Session = Depends(get_db)
+):
+    university = resolve_user_university(user, db)
+    challenge = None
+    try:
+        val = uuid.UUID(challenge_identifier)
+        challenge = db.query(Challenge).filter(Challenge.id == str(val)).first()
+    except (ValueError, AttributeError):
+        pass
+
+    if not challenge:
+        challenge = db.query(Challenge).filter(Challenge.short_id == challenge_identifier).first()
+
+    if not challenge:
+        raise HTTPException(status_code=404, detail="Challenge not found.")
+
+    assignment = db.query(ChallengeAssignment).filter(
+        ChallengeAssignment.challenge_id == challenge.id,
+        ChallengeAssignment.university_id == university.id,
+        ChallengeAssignment.status == "ACTIVE"
+    ).first()
+
+    if not assignment:
+        raise HTTPException(status_code=403, detail="Challenge not assigned to your university.")
+
+    assignment.team_name = payload.team_name
+    assignment.faculty_mentor = payload.faculty_mentor
+    assignment.student_members = payload.student_members
+
+    db.commit()
+    db.refresh(assignment)
+    return {
+        "status": "success",
+        "team_name": assignment.team_name,
+        "faculty_mentor": assignment.faculty_mentor,
+        "student_members": assignment.student_members
+    }
+
+
+@router.post(
+    "/challenges/{challenge_identifier}/request-industry-support",
+    summary="Request Industry Support after solution is approved (SOLUTION_APPROVED)"
+)
+def request_industry_support(
+    challenge_identifier: str,
+    payload: IndustrySupportRequestPayload,
+    user: User = Depends(require_university),
+    db: Session = Depends(get_db)
+):
+    university = resolve_user_university(user, db)
+    challenge = None
+    try:
+        val = uuid.UUID(challenge_identifier)
+        challenge = db.query(Challenge).filter(Challenge.id == str(val)).first()
+    except (ValueError, AttributeError):
+        pass
+
+    if not challenge:
+        challenge = db.query(Challenge).filter(Challenge.short_id == challenge_identifier).first()
+
+    if not challenge:
+        raise HTTPException(status_code=404, detail="Challenge not found.")
+
+    if challenge.status not in (ChallengeStatus.SOLUTION_APPROVED, ChallengeStatus.COMPLETED):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Cannot request industry support for challenge with status '{challenge.status}'. Solution must be approved first."
+        )
+
+    from app.models.industry import IndustryInterest, IndustryInterestStatus
+    
+    # Check existing request
+    existing = db.query(IndustryInterest).filter(
+        IndustryInterest.challenge_id == challenge.id,
+        IndustryInterest.industry_user_id == user.id
+    ).first()
+
+    if existing:
+        return existing
+
+    req = IndustryInterest(
+        challenge_id=challenge.id,
+        industry_user_id=user.id,
+        company_name=f"{university.short_name} Solution Partnership",
+        contact_email=user.email,
+        support_type=payload.support_type,
+        message=f"{payload.purpose}: {payload.message}",
+        status=IndustryInterestStatus.FUNDING_INTEREST
+    )
+    db.add(req)
+    db.commit()
+    db.refresh(req)
+    return req
+
+
+@router.get(
+    "/industry-interests",
+    response_model=List[IndustryInterestOut],
+    summary="Get all industry funding interests expressed for this university's assigned challenges"
+)
+def get_university_industry_interests(
+    user: User = Depends(require_university),
+    db: Session = Depends(get_db)
+):
+    university = resolve_user_university(user, db)
+    assigned_challenge_ids = db.query(ChallengeAssignment.challenge_id).filter(
+        ChallengeAssignment.university_id == university.id
+    ).all()
+    c_ids = [c[0] for c in assigned_challenge_ids]
+
+    interests = db.query(IndustryInterest).filter(
+        IndustryInterest.challenge_id.in_(c_ids)
+    ).order_by(IndustryInterest.created_at.desc()).all()
+
+    return interests

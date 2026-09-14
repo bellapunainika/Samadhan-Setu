@@ -21,6 +21,7 @@ const ROLE_DASHBOARD = {
   university: '/dashboard/university',
   industry:   '/dashboard/industry',
   admin:      '/dashboard/admin',
+  officer:    '/dashboard/officer',
 };
 
 const ROLE_LABEL = {
@@ -28,6 +29,7 @@ const ROLE_LABEL = {
   university: 'University',
   industry:   'Industry Partner',
   admin:      'Government Admin',
+  officer:    'Government Officer',
 };
 
 export function AppProvider({ children }) {
@@ -43,10 +45,7 @@ export function AppProvider({ children }) {
   const [currentRole, setCurrentRole] = useState(() => getStoredUser()?.role || null);
   const [language, setLanguage] = useState('en'); // 'en' | 'hi'
   const [currentPath, setCurrentPath] = useState(window.location.hash.replace('#', '') || '/');
-  const [problems, setProblems] = useState(() => {
-    const saved = localStorage.getItem('samadhan_problems');
-    return saved ? JSON.parse(saved) : MOCK_PROBLEMS;
-  });
+  const [problems, setProblems] = useState([]);
   const [notifications, setNotifications] = useState(MOCK_NOTIFICATIONS);
   const [toasts, setToasts] = useState([]);
   const [selectedDistrict, setSelectedDistrict] = useState(null);

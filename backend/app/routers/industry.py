@@ -2,7 +2,7 @@
 routers/industry.py — Stage 3 Industry Partnership & CSR Opportunities Endpoints.
 """
 import uuid
-from typing import List
+from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from datetime import datetime, timezone
@@ -37,8 +37,9 @@ def get_industry_opportunities(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    # Industry opportunities include approved, assigned, in-progress, solution submitted, and completed challenges
+    # Industry opportunities include approved solutions and active opportunities
     eligible_statuses = [
+        ChallengeStatus.SOLUTION_APPROVED,
         ChallengeStatus.APPROVED,
         ChallengeStatus.ASSIGNED,
         ChallengeStatus.IN_PROGRESS,
@@ -82,7 +83,7 @@ def express_interest(
     existing = db.query(IndustryInterest).filter(
         IndustryInterest.challenge_id == challenge.id,
         IndustryInterest.industry_user_id == user.id,
-        IndustryInterest.status.in_([IndustryInterestStatus.PENDING_ADMIN_REVIEW, IndustryInterestStatus.ACCEPTED])
+        IndustryInterest.status != IndustryInterestStatus.DECLINED
     ).first()
 
     if existing:
@@ -97,8 +98,9 @@ def express_interest(
         company_name=payload.company_name,
         contact_email=payload.contact_email,
         support_type=payload.support_type,
+        pledged_amount=payload.pledged_amount,
         message=payload.message,
-        status=IndustryInterestStatus.PENDING_ADMIN_REVIEW,
+        status=IndustryInterestStatus.FUNDING_INTEREST,
         created_at=datetime.now(timezone.utc)
     )
     db.add(req)
@@ -123,6 +125,74 @@ def get_my_interests(
 
 
 @router.get(
+    "/history",
+    response_model=List[IndustryInterestOut],
+    summary="Get confirmed and completed funded projects for Industry history"
+)
+def get_industry_history(
+    user: User = Depends(require_industry),
+    db: Session = Depends(get_db)
+):
+    requests = db.query(IndustryInterest).filter(
+        IndustryInterest.industry_user_id == user.id,
+        IndustryInterest.status.in_([
+            IndustryInterestStatus.SUPPORT_CONFIRMED,
+            IndustryInterestStatus.FUNDING_CONFIRMED,
+            IndustryInterestStatus.PROJECT_FUNDED,
+            IndustryInterestStatus.ACCEPTED
+        ])
+    ).order_by(IndustryInterest.updated_at.desc()).all()
+    return requests
+
+
+from pydantic import BaseModel
+class ProposalStatusUpdateRequest(BaseModel):
+    status: str
+    proposal_summary: Optional[str] = None
+    pledged_amount: Optional[str] = None
+
+
+@router.post(
+    "/proposals/{request_id}/update-status",
+    response_model=IndustryInterestOut,
+    summary="Update proposal discussion status (PROPOSAL_UNDER_DISCUSSION, SUPPORT_CONFIRMED, FUNDING_CONFIRMED)"
+)
+def update_proposal_status(
+    request_id: str,
+    payload: ProposalStatusUpdateRequest,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    try:
+        val = uuid.UUID(request_id)
+        req = db.query(IndustryInterest).filter(IndustryInterest.id == str(val)).first()
+    except (ValueError, AttributeError):
+        req = None
+
+    if not req:
+        raise HTTPException(status_code=404, detail="Proposal record not found.")
+
+    target_status = payload.status.upper()
+    if target_status in IndustryInterestStatus.__members__:
+        req.status = IndustryInterestStatus[target_status]
+
+    if payload.proposal_summary:
+        req.proposal_summary = payload.proposal_summary
+    if payload.pledged_amount:
+        req.pledged_amount = payload.pledged_amount
+
+    if req.status in (IndustryInterestStatus.SUPPORT_CONFIRMED, IndustryInterestStatus.FUNDING_CONFIRMED, IndustryInterestStatus.PROJECT_FUNDED, IndustryInterestStatus.ACCEPTED):
+        req.confirmed_at = datetime.now(timezone.utc)
+        if req.challenge:
+            req.challenge.status = ChallengeStatus.COMPLETED
+            req.challenge.updated_at = datetime.now(timezone.utc)
+
+    db.commit()
+    db.refresh(req)
+    return req
+
+
+@router.get(
     "/stats",
     summary="Get real database industry partnership metrics"
 )
@@ -132,6 +202,7 @@ def get_industry_stats(
 ):
     eligible_count = db.query(Challenge).filter(
         Challenge.status.in_([
+            ChallengeStatus.SOLUTION_APPROVED,
             ChallengeStatus.APPROVED,
             ChallengeStatus.ASSIGNED,
             ChallengeStatus.IN_PROGRESS,
@@ -144,8 +215,8 @@ def get_industry_stats(
         IndustryInterest.industry_user_id == user.id
     )
 
-    pending_count = my_interests.filter(IndustryInterest.status == IndustryInterestStatus.PENDING_ADMIN_REVIEW).count()
-    accepted_count = my_interests.filter(IndustryInterest.status == IndustryInterestStatus.ACCEPTED).count()
+    pending_count = my_interests.filter(IndustryInterest.status.in_([IndustryInterestStatus.FUNDING_INTEREST, IndustryInterestStatus.PENDING_ADMIN_REVIEW, IndustryInterestStatus.PROPOSAL_UNDER_DISCUSSION])).count()
+    accepted_count = my_interests.filter(IndustryInterest.status.in_([IndustryInterestStatus.SUPPORT_CONFIRMED, IndustryInterestStatus.FUNDING_CONFIRMED, IndustryInterestStatus.PROJECT_FUNDED, IndustryInterestStatus.ACCEPTED])).count()
     declined_count = my_interests.filter(IndustryInterest.status == IndustryInterestStatus.DECLINED).count()
 
     return {
