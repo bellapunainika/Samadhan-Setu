@@ -3,13 +3,14 @@ import { useApp } from '../../context/AppContext';
 import { Modal } from '../common/Modal';
 import { JHARKHAND_DISTRICTS, CATEGORIES } from '../../data/jharkhandDistricts';
 import { 
-  Sparkles, Upload, AlertTriangle, ArrowRight, ArrowLeft, 
-  Check, Image as ImageIcon, Flame, Shield, Users, Building, HelpCircle
+  Sparkles, Upload, ArrowRight, ArrowLeft, 
+  Check, Image as ImageIcon, Info, AlertCircle
 } from 'lucide-react';
 import { AiProcessingModal } from '../ai/AiProcessingModal';
+import { createChallenge, uploadEvidence } from '../../services/challengeService';
 
 export const ProblemSubmitModal = ({ isOpen, onClose }) => {
-  const { navigate, showToast } = useApp();
+  const { navigate, showToast, isLoggedIn, requireAuth } = useApp();
 
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState({
@@ -22,10 +23,15 @@ export const ProblemSubmitModal = ({ isOpen, onClose }) => {
     submitterType: 'Panchayati Raj Institution',
     submitterName: '',
     severity: 4,
-    images: []
+    affectedPopulation: 50,
+    file: null,
+    filePreview: null
   });
 
   const [showAiModal, setShowAiModal] = useState(false);
+  const [submittedChallengeResult, setSubmittedChallengeResult] = useState(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState('');
 
   const handleDistrictChange = (distId) => {
     const selected = JHARKHAND_DISTRICTS.find(d => d.id === distId);
@@ -36,30 +42,89 @@ export const ProblemSubmitModal = ({ isOpen, onClose }) => {
     }));
   };
 
-  const handleImageMockUpload = (e) => {
-    e.preventDefault();
+  const handleFileSelect = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    // Validate size (10 MB)
+    if (file.size > 10 * 1024 * 1024) {
+      showToast('File Too Large', 'Maximum image size is 10 MB.', 'error');
+      return;
+    }
+
+    // Validate type
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+      showToast('Invalid File Type', 'Only JPEG, PNG, and WEBP images are allowed.', 'error');
+      return;
+    }
+
     setFormData(prev => ({
       ...prev,
-      images: [
-        "https://images.unsplash.com/photo-1541888946425-d0fbb18086f6?w=800&auto=format&fit=crop&q=60"
-      ]
+      file,
+      filePreview: URL.createObjectURL(file)
     }));
-    showToast('Image Attached', 'Geo-tagged photographic evidence uploaded', 'success');
+    showToast('Image Evidence Selected', file.name, 'success');
   };
 
-  const handleProceedToAi = () => {
+  const handleProceedToAi = async () => {
+    setSubmitError('');
+
+    if (!isLoggedIn) {
+      requireAuth(null, () => setStep(3));
+      return;
+    }
+
     if (!formData.title.trim()) {
-      showToast('Validation Error', 'Please enter a problem title.', 'error');
+      showToast('Validation Error', 'Please enter a challenge title.', 'error');
       return;
     }
     if (!formData.description.trim()) {
-      showToast('Validation Error', 'Please describe the problem details.', 'error');
+      showToast('Validation Error', 'Please describe the challenge details.', 'error');
       return;
     }
-    setShowAiModal(true);
+    if (!formData.location.trim()) {
+      showToast('Validation Error', 'Please enter the village, block, or landmark.', 'error');
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      // 1. Send challenge to backend API
+      const createdChallenge = await createChallenge({
+        title: formData.title,
+        description: formData.description,
+        category: formData.category,
+        district_id: formData.districtId,
+        block_locality: formData.location,
+        citizen_severity: formData.severity,
+        affected_population: parseInt(formData.affectedPopulation, 10) || 50,
+        submitter_type: formData.submitterType,
+        submitter_name: formData.submitterName || undefined,
+      });
+
+      // 2. Upload file if selected
+      if (formData.file) {
+        try {
+          await uploadEvidence(createdChallenge.id, formData.file);
+        } catch (uploadErr) {
+          showToast('Image Upload Warning', 'Challenge was submitted, but image upload failed.', 'error');
+        }
+      }
+
+      setSubmittedChallengeResult(createdChallenge);
+      setIsSubmitting(false);
+      setShowAiModal(true);
+
+    } catch (err) {
+      setIsSubmitting(false);
+      const errMsg = err.response?.data?.detail || 'Submission failed. Please check backend connection.';
+      setSubmitError(errMsg);
+      showToast('Submission Failed', errMsg, 'error');
+    }
   };
 
-  const handleAiComplete = (newProblem) => {
+  const handleAiComplete = (finalProblem) => {
     setShowAiModal(false);
     onClose();
     // Reset form
@@ -74,9 +139,11 @@ export const ProblemSubmitModal = ({ isOpen, onClose }) => {
       submitterType: 'Panchayati Raj Institution',
       submitterName: '',
       severity: 4,
-      images: []
+      affectedPopulation: 50,
+      file: null,
+      filePreview: null
     });
-    navigate(`/project/${newProblem.id}`);
+    setSubmittedChallengeResult(null);
   };
 
   return (
@@ -85,7 +152,7 @@ export const ProblemSubmitModal = ({ isOpen, onClose }) => {
         isOpen={isOpen && !showAiModal}
         onClose={onClose}
         title="Submit a Societal Challenge"
-        subtitle="Empower your community by submitting grassroots issues for AI-driven university research & industry CSR funding."
+        subtitle="Empower your community by submitting grassroots issues for AI-driven Jharkhand university research."
         maxWidth="max-w-2xl"
       >
         <div className="space-y-6 text-left">
@@ -109,9 +176,16 @@ export const ProblemSubmitModal = ({ isOpen, onClose }) => {
               <span className={`w-7 h-7 rounded-full text-xs font-bold flex items-center justify-center ${step >= 3 ? 'bg-indigo-600 text-white' : 'bg-slate-800 text-slate-400'}`}>
                 3
               </span>
-              <span className="text-xs font-semibold text-slate-300">Severity & Proof</span>
+              <span className="text-xs font-semibold text-slate-300">Severity & Evidence</span>
             </div>
           </div>
+
+          {submitError && (
+            <div className="p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-xs text-rose-300 flex items-start gap-2">
+              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+              <span>{submitError}</span>
+            </div>
+          )}
 
           {/* Step 1: Basic Info */}
           {step === 1 && (
@@ -163,7 +237,6 @@ export const ProblemSubmitModal = ({ isOpen, onClose }) => {
                   className="w-full px-4 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 resize-none"
                 />
               </div>
-
             </div>
           )}
 
@@ -234,55 +307,76 @@ export const ProblemSubmitModal = ({ isOpen, onClose }) => {
             </div>
           )}
 
-          {/* Step 3: Severity & Proof */}
+          {/* Step 3: Severity & Evidence */}
           {step === 3 && (
             <div className="space-y-4">
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-1.5">
-                  Severity Self-Rating (1 to 5) *
-                </label>
-                <div className="grid grid-cols-5 gap-2">
-                  {[1, 2, 3, 4, 5].map((lvl) => {
-                    const labels = ["Low", "Moderate", "High", "Severe", "Critical"];
-                    const isSelected = formData.severity === lvl;
-                    return (
-                      <button
-                        key={lvl}
-                        type="button"
-                        onClick={() => setFormData({ ...formData, severity: lvl })}
-                        className={`py-3 px-1 rounded-xl border text-center flex flex-col items-center justify-center gap-1 transition-all ${
-                          isSelected
-                            ? 'bg-rose-950/80 border-rose-500 text-white ring-2 ring-rose-500/50'
-                            : 'bg-slate-900/60 border-slate-800 text-slate-400 hover:border-slate-700'
-                        }`}
-                      >
-                        <span className="text-sm font-extrabold">{lvl}</span>
-                        <span className="text-[10px] font-bold">{labels[lvl - 1]}</span>
-                      </button>
-                    );
-                  })}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-1.5">
+                    Severity Self-Rating (1 to 5) *
+                  </label>
+                  <div className="grid grid-cols-5 gap-1.5">
+                    {[1, 2, 3, 4, 5].map((lvl) => {
+                      const labels = ["Low", "Mod", "High", "Sevr", "Crit"];
+                      const isSelected = formData.severity === lvl;
+                      return (
+                        <button
+                          key={lvl}
+                          type="button"
+                          onClick={() => setFormData({ ...formData, severity: lvl })}
+                          className={`py-2 px-1 rounded-xl border text-center flex flex-col items-center justify-center transition-all ${
+                            isSelected
+                              ? 'bg-rose-950/80 border-rose-500 text-white ring-2 ring-rose-500/50'
+                              : 'bg-slate-900/60 border-slate-800 text-slate-400 hover:border-slate-700'
+                          }`}
+                        >
+                          <span className="text-xs font-extrabold">{lvl}</span>
+                          <span className="text-[9px] font-bold">{labels[lvl - 1]}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-1.5">
+                    Estimated Affected Population
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={formData.affectedPopulation}
+                    onChange={(e) => setFormData({ ...formData, affectedPopulation: e.target.value })}
+                    placeholder="e.g. 120"
+                    className="w-full px-4 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-sm text-white focus:outline-none focus:border-indigo-500"
+                  />
                 </div>
               </div>
 
-              {/* Multimedia Upload */}
+              {/* Real File Input for Evidence */}
               <div>
                 <label className="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-1.5">
-                  Photo / Evidence Upload
+                  Photo / Evidence File Upload <span className="text-slate-500">(Optional)</span>
                 </label>
-                <div
-                  onClick={handleImageMockUpload}
-                  className="border-2 border-dashed border-slate-700 hover:border-indigo-500/60 rounded-2xl p-6 text-center cursor-pointer bg-slate-900/40 transition-colors"
-                >
+                <div className="relative border-2 border-dashed border-slate-700 hover:border-indigo-500/60 rounded-2xl p-5 text-center bg-slate-900/40 transition-colors">
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    onChange={handleFileSelect}
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                  />
                   <Upload className="w-8 h-8 text-indigo-400 mx-auto mb-2" />
                   <p className="text-xs font-semibold text-slate-300">
-                    Click to attach ground photos or drone video footage
+                    Click or drag & drop ground photo evidence
                   </p>
                   <p className="text-[10px] text-slate-500 mt-1">
-                    Supports JPG, PNG, MP4 up to 50MB with automatic EXIF geo-tag verification.
+                    Supports JPG, PNG, WEBP up to 10MB.
                   </p>
-                  {formData.images.length > 0 && (
-                    <div className="mt-3 inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-xs font-bold">
-                      <Check className="w-3.5 h-3.5" /> 1 Image Attached
+
+                  {formData.file && (
+                    <div className="mt-3 inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-xs font-bold">
+                      <Check className="w-3.5 h-3.5" />
+                      <span>{formData.file.name} ({(formData.file.size / 1024).toFixed(1)} KB)</span>
                     </div>
                   )}
                 </div>
@@ -317,21 +411,25 @@ export const ProblemSubmitModal = ({ isOpen, onClose }) => {
             ) : (
               <button
                 type="button"
+                disabled={isSubmitting}
                 onClick={handleProceedToAi}
-                className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 via-indigo-500 to-emerald-600 hover:from-indigo-500 hover:to-emerald-500 text-white text-xs font-extrabold flex items-center gap-2 shadow-lg shadow-indigo-500/25 transition-all hover:scale-105"
+                className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 via-indigo-500 to-emerald-600 hover:from-indigo-500 hover:to-emerald-500 text-white text-xs font-extrabold flex items-center gap-2 shadow-lg shadow-indigo-500/25 transition-all hover:scale-105 disabled:opacity-60"
               >
-                <Sparkles className="w-4 h-4" />
-                Process with AI & Route
+                {isSubmitting ? (
+                  <><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /><span>Submitting to Backend…</span></>
+                ) : (
+                  <><Sparkles className="w-4 h-4" /><span>Submit & Run AI Engine</span></>
+                )}
               </button>
             )}
           </div>
         </div>
       </Modal>
 
-      {/* Neural AI Processing Overlay */}
-      {showAiModal && (
+      {/* AI Analysis Overlay */}
+      {showAiModal && submittedChallengeResult && (
         <AiProcessingModal
-          rawData={formData}
+          challengeData={submittedChallengeResult}
           onComplete={handleAiComplete}
           onCancel={() => setShowAiModal(false)}
         />

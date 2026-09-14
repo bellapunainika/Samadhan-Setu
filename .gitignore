@@ -69,7 +69,13 @@ coverage/
 .nyc_output/
 
 # ===========================
-# Misc
+# Misc & Python
 # ===========================
 *.local
 .cache/
+venv/
+backend/venv/
+**/__pycache__/
+**/*.pyc
+backend/uploads/*
+!backend/uploads/.gitkeep
