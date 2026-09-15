@@ -384,7 +384,7 @@ def seed_database():
             contact_email="csr@tatasteel.com",
             support_type="CSR Grant & Pilot Manufacturing",
             message="We propose a ₹15,00,000 CSR grant to manufacture 3 pilot mobile trailers for East Singhbhum district.",
-            status=IndustryInterestStatus.PENDING_ADMIN_REVIEW
+            status=IndustryInterestStatus.INTEREST_EXPRESSED
         )
         db.add(ind9)
 
@@ -403,7 +403,7 @@ def seed_database():
             contact_email="csr@tatasteel.com",
             support_type="CSR Direct Funding",
             message="Fully funded ₹25,00,000 deployment across 5 Gram Panchayats.",
-            status=IndustryInterestStatus.ACCEPTED,
+            status=IndustryInterestStatus.SUPPORT_CONFIRMED,
             admin_response="Tripartite MoU signed and funding confirmed."
         )
         db.add(ind11)
