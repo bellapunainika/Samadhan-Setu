@@ -12,6 +12,7 @@ import {
   getStoredUser,
   hasToken,
 } from '../services/authService';
+import { getPublicChallenges } from '../services/challengeService';
 
 const AppContext = createContext();
 
@@ -34,7 +35,7 @@ const ROLE_LABEL = {
 
 export function AppProvider({ children }) {
   // ─── Auth State ─────────────────────────────────────────────────────────────
-  // Initialise from localStorage so session survives page refresh
+  // Initialise from sessionStorage (closing/reopening tab or website starts logged out)
   const [isLoggedIn, setIsLoggedIn] = useState(() => hasToken() && !!getStoredUser());
   const [currentUser, setCurrentUser] = useState(() => getStoredUser()); // { id, email, full_name, role }
   const [authLoading, setAuthLoading] = useState(() => hasToken()); // true while /me is in-flight
@@ -55,6 +56,47 @@ export function AppProvider({ children }) {
   useEffect(() => {
     localStorage.setItem('samadhan_problems', JSON.stringify(problems));
   }, [problems]);
+
+  // ── Load real public challenges from DB on mount ─────────────────────────────
+  useEffect(() => {
+    getPublicChallenges(100)
+      .then((list) => {
+        const mapped = list.map((ch) => {
+          const distName = ch.district_id
+            ? ch.district_id.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
+            : 'Jharkhand';
+          const assignedUnivName = ch.assignment?.university_name || ch.assigned_university_name || null;
+          return {
+            id: ch.short_id || ch.id,
+            rawId: ch.id,
+            title: ch.title,
+            description: ch.description,
+            category: ch.category,
+            districtId: ch.district_id,
+            districtName: distName,
+            location: ch.block_locality,
+            severity: ch.citizen_severity,
+            urgencyScore: ch.ai_prediction?.priority_score || (ch.citizen_severity * 15),
+            priorityLabel: ch.ai_prediction?.priority_label || 'HIGH',
+            status: ch.status,
+            rawStatus: ch.status,
+            submitterType: ch.submitter_type || 'Citizen',
+            submitterName: ch.submitter_name || 'Citizen Advocate',
+            submittedAt: ch.created_at ? new Date(ch.created_at).toLocaleDateString() : 'Recent',
+            upvotes: 1,
+            hasUpvoted: false,
+            comments: [],
+            duplicateCount: ch.ai_prediction?.similar_challenge_ids?.length || 0,
+            assignedUniversity: assignedUnivName ? { name: assignedUnivName } : null,
+            isRealDatabaseRecord: true,
+          };
+        });
+        setProblems(mapped);
+      })
+      .catch(() => {
+        // Backend unreachable — keep empty array; individual dashboards show their own errors
+      });
+  }, []);
 
   // ── Session restore on mount ────────────────────────────────────────────────
   // If a token exists in localStorage, verify it with the backend (/auth/me).

@@ -18,7 +18,7 @@ const api = axios.create({
 // ── Request interceptor — attach JWT ────────────────────────────────────────
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('samadhan_token');
+    const token = sessionStorage.getItem('samadhan_token');
     if (token) {
       config.headers['Authorization'] = `Bearer ${token}`;
     }
@@ -33,6 +33,8 @@ api.interceptors.response.use(
   (error) => {
     if (error.response?.status === 401) {
       // Token expired or invalid — clear session
+      sessionStorage.removeItem('samadhan_token');
+      sessionStorage.removeItem('samadhan_user');
       localStorage.removeItem('samadhan_token');
       localStorage.removeItem('samadhan_user');
       // Redirect to home so LoginModal appears on next action

@@ -3,6 +3,7 @@ config.py — Application settings loaded from environment variables.
 Uses pydantic-settings so all config is validated at startup.
 No secrets are hardcoded.
 """
+from typing import Optional, List
 from pydantic_settings import BaseSettings
 from pydantic import AnyUrl
 from functools import lru_cache
@@ -28,6 +29,11 @@ class Settings(BaseSettings):
     # ── File Upload ───────────────────────────────────────────────────────────
     UPLOAD_DIR: str = "uploads"
     MAX_UPLOAD_SIZE_MB: int = 10
+
+    # ── Supabase Storage (Optional persistent evidence bucket) ────────────────
+    SUPABASE_URL: Optional[str] = None
+    SUPABASE_KEY: Optional[str] = None
+    SUPABASE_BUCKET: str = "samadhan-evidence"
 
     class Config:
         env_file = ".env"

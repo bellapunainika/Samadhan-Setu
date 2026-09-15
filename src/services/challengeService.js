@@ -7,6 +7,14 @@
 import api from './api';
 
 /**
+ * Fetch all public challenges (no auth required) — powers the citizen "All Challenges" feed.
+ */
+export async function getPublicChallenges(limit = 100) {
+  const { data } = await api.get('/challenges', { params: { limit } });
+  return data;
+}
+
+/**
  * Submit a new grassroots challenge to FastAPI backend.
  * Returns created challenge object with AI prediction output.
  */

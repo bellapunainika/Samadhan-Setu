@@ -62,6 +62,14 @@ export const StatusBadge = ({ status, className = "" }) => {
     'SOLUTION_SUBMITTED': { label: 'Solution Submitted', color: 'bg-purple-500/20 text-purple-300 border-purple-500/30', icon: Sparkles },
     'Solution Submitted': { label: 'Solution Submitted', color: 'bg-purple-500/20 text-purple-300 border-purple-500/30', icon: Sparkles },
 
+    'SOLUTION_APPROVED': { label: 'Solution Approved', color: 'bg-teal-500/20 text-teal-300 border-teal-500/30', icon: CheckCircle2 },
+    'Solution Approved': { label: 'Solution Approved', color: 'bg-teal-500/20 text-teal-300 border-teal-500/30', icon: CheckCircle2 },
+
+    'INDUSTRY_SUPPORT_REQUESTED': { label: 'Seeking Industry Support', color: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40', icon: Sparkles },
+
+    'VALIDATED': { label: 'Validated', color: 'bg-teal-500/20 text-teal-300 border-teal-500/30', icon: CheckCircle2 },
+    'Validated': { label: 'Validated', color: 'bg-teal-500/20 text-teal-300 border-teal-500/30', icon: CheckCircle2 },
+
     'COMPLETED': { label: 'Completed', color: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30', icon: CheckCircle2 },
     'Completed': { label: 'Completed', color: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30', icon: CheckCircle2 },
     'Solved': { label: 'Completed', color: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30', icon: CheckCircle2 },

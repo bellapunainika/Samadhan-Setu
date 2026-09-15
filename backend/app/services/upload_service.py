@@ -78,9 +78,26 @@ async def save_evidence_file(file: UploadFile, uploaded_by_user_id: str) -> Tupl
             detail="Uploaded file is empty (0 bytes).",
         )
 
-    # 4. Generate UUID-based filename on disk
+    # 4. Generate UUID-based filename
     target_ext = ALLOWED_MIME_TYPES[content_type]
     stored_filename = f"{uuid.uuid4().hex}{target_ext}"
+
+    # 5. Persistent Supabase Storage vs Local Storage
+    if settings.SUPABASE_URL and settings.SUPABASE_KEY:
+        try:
+            from supabase import create_client
+            supabase_client = create_client(settings.SUPABASE_URL, settings.SUPABASE_KEY)
+            bucket = settings.SUPABASE_BUCKET
+            supabase_client.storage.from_(bucket).upload(
+                path=stored_filename,
+                file=content,
+                file_options={"content-type": content_type}
+            )
+            storage_path = f"supabase://{bucket}/{stored_filename}"
+            return (file.filename, stored_filename, content_type, size_bytes, storage_path)
+        except Exception:
+            # Fallback to local storage if bucket upload is unavailable
+            pass
 
     upload_dir = ensure_upload_dir_exists()
     file_path = os.path.join(upload_dir, stored_filename)
