@@ -1,5 +1,5 @@
 """
-schemas/industry.py — Industry interest request Pydantic models.
+schemas/industry.py — Industry interest/partnership Pydantic models.
 """
 import uuid
 from datetime import datetime
@@ -9,10 +9,14 @@ from app.models.industry import IndustryInterestStatus
 
 
 class ExpressInterestRequest(BaseModel):
+    """
+    Submitted by a real Industry user to express interest in a validated solution.
+    The challenge must have status INDUSTRY_SUPPORT_REQUESTED.
+    """
     company_name: str
     contact_email: str
     support_type: Optional[str] = "CSR Funding & Technical Mentorship"
-    pledged_amount: Optional[str] = None
+    pledged_amount: Optional[str] = None   # Not required; do not fabricate
     message: str
 
     @field_validator("company_name")
@@ -30,9 +34,14 @@ class ExpressInterestRequest(BaseModel):
         return v.strip()
 
 
-class IndustryReviewRequest(BaseModel):
-    action: str  # ACCEPT or DECLINE
-    response: Optional[str] = None
+class ProposalStatusUpdateRequest(BaseModel):
+    """
+    Used by University OR Industry to advance the proposal through the pipeline.
+    Role-gated in the router — only valid transitions for the caller's role are allowed.
+    """
+    status: str           # Target IndustryInterestStatus value
+    proposal_summary: Optional[str] = None
+    pledged_amount: Optional[str] = None
 
 
 class IndustryInterestOut(BaseModel):
@@ -46,9 +55,10 @@ class IndustryInterestOut(BaseModel):
     proposal_summary: Optional[str] = None
     message: str
     status: IndustryInterestStatus
-    admin_response: Optional[str] = None
+    admin_response: Optional[str] = None   # Governance notes only (read-only)
     created_at: datetime
     reviewed_at: Optional[datetime] = None
     confirmed_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
 
     model_config = {"from_attributes": True}

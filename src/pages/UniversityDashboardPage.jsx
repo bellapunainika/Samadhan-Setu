@@ -6,7 +6,7 @@ import {
 } from 'lucide-react';
 import { ChallengeCard } from '../components/citizen/ChallengeCard';
 import { Modal } from '../components/common/Modal';
-import { getAvailableChallenges, getMyAssignments, getUniversityStats, getUniversityIndustryInterests, configureTeam } from '../services/universityService';
+import { getAvailableChallenges, getMyAssignments, getUniversityStats, getUniversityIndustryInterests, configureTeam, seekIndustrySupport } from '../services/universityService';
 import { updateProposalStatus } from '../services/industryService';
 
 export const UniversityDashboardPage = () => {
@@ -114,17 +114,30 @@ export const UniversityDashboardPage = () => {
     }
   };
 
-  const handleUpdateStatus = async (requestId, newStatus) => {
+  const handleUpdateStatus = async (requestId, newStatus, summary) => {
     try {
       await updateProposalStatus(requestId, {
         status: newStatus,
-        proposal_summary: 'University R&D Cell agreed terms and confirmed support agreement with corporate partner.'
+        proposal_summary: summary || 'University R&D Cell progressed the proposal stage.'
       });
-      setActionSuccess(`Proposal status updated to ${newStatus}`);
+      setActionSuccess(`Proposal stage advanced to: ${newStatus.replace(/_/g, ' ')}`);
       setTimeout(() => setActionSuccess(''), 3000);
       fetchUniversityData();
     } catch (err) {
       setError(err.response?.data?.detail || 'Failed to update proposal status.');
+      setTimeout(() => setError(''), 4000);
+    }
+  };
+
+  const handleSeekIndustrySupport = async (challengeRawId, challengeShortId) => {
+    try {
+      await seekIndustrySupport(challengeRawId || challengeShortId);
+      setActionSuccess('Industry support requested — solution is now visible to Industry partners.');
+      setTimeout(() => setActionSuccess(''), 4000);
+      fetchUniversityData();
+    } catch (err) {
+      setError(err.response?.data?.detail || 'Failed to seek industry support.');
+      setTimeout(() => setError(''), 4000);
     }
   };
 
@@ -358,80 +371,152 @@ export const UniversityDashboardPage = () => {
         </div>
       )}
 
-      {/* TAB 3: INDUSTRY SUPPORT */}
+      {/* TAB 3: INDUSTRY CSR SUPPORT */}
       {activeTab === 'industry-support' && (
-        <div className="space-y-4">
-          {industryInterests.length === 0 ? (
-            <div className="py-16 px-6 text-center space-y-4 bg-slate-900/40 border border-slate-800 rounded-3xl">
-              <HandCoins className="w-10 h-10 text-slate-500 mx-auto" />
-              <div className="space-y-1 max-w-md mx-auto">
-                <h4 className="text-sm font-bold text-white">No Industry Funding Interests Yet</h4>
-                <p className="text-xs text-slate-400">
-                  Once your university's solution is approved by State Admin, corporate CSR partners can express interest and offer funding.
-                </p>
+        <div className="space-y-6">
+          {/* Seek Industry Support — per SOLUTION_APPROVED challenge */}
+          {assignedList.filter(c => c.status === 'SOLUTION_APPROVED').length > 0 && (
+            <div className="p-5 rounded-3xl bg-emerald-950/30 border border-emerald-500/30 space-y-3">
+              <div className="flex items-center gap-2">
+                <HandCoins className="w-4 h-4 text-emerald-400" />
+                <h3 className="text-sm font-bold text-white">Solutions Ready to Seek Industry Support</h3>
+              </div>
+              <p className="text-xs text-slate-300">
+                These solutions have been <strong className="text-emerald-300">approved by Admin</strong>. Click <strong className="text-white">"Seek Industry Support"</strong> to make them visible to Industry partners on the platform.
+                This does <strong className="text-rose-300">not</strong> create any funding agreement — it only signals that your solution is available for industry interest.
+              </p>
+              <div className="space-y-2">
+                {assignedList.filter(c => c.status === 'SOLUTION_APPROVED').map(ch => (
+                  <div key={ch.id} className="flex items-center justify-between p-3 rounded-2xl bg-slate-900 border border-slate-800 gap-3">
+                    <div className="space-y-0.5 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-mono text-amber-400">{ch.id}</span>
+                        <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">SOLUTION_APPROVED</span>
+                      </div>
+                      <p className="text-xs font-bold text-white truncate">{ch.title}</p>
+                    </div>
+                    <button
+                      onClick={() => handleSeekIndustrySupport(ch.rawId, ch.id)}
+                      className="px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-bold flex items-center gap-1.5 shrink-0 shadow-md"
+                    >
+                      <HandCoins className="w-3.5 h-3.5" />
+                      Seek Industry Support
+                    </button>
+                  </div>
+                ))}
               </div>
             </div>
-          ) : (
-            industryInterests.map(req => (
-              <div key={req.id} className="p-6 rounded-3xl bg-slate-900 border border-slate-800 space-y-4 text-left">
-                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <Building2 className="w-4 h-4 text-emerald-400" />
-                      <span className="font-bold text-white text-base">{req.company_name}</span>
-                      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                        {req.status}
-                      </span>
+          )}
+
+          {/* Industry Interests Expressed for University's Challenges */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-bold text-white">Industry Funding Interests Received</h3>
+              <span className="text-xs text-slate-400">{industryInterests.length} records</span>
+            </div>
+
+            {industryInterests.length === 0 ? (
+              <div className="py-12 px-6 text-center space-y-3 bg-slate-900/40 border border-slate-800 rounded-3xl">
+                <HandCoins className="w-10 h-10 text-slate-500 mx-auto" />
+                <div className="space-y-1 max-w-md mx-auto">
+                  <h4 className="text-sm font-bold text-white">No Industry Interest Yet</h4>
+                  <p className="text-xs text-slate-400">
+                    Once your solution is SOLUTION_APPROVED and you click "Seek Industry Support", industry partners will be able to express funding interest here.
+                  </p>
+                </div>
+              </div>
+            ) : (
+              industryInterests.map(req => (
+                <div key={req.id} className="p-6 rounded-3xl bg-slate-900 border border-slate-800 space-y-4 text-left">
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <Building2 className="w-4 h-4 text-emerald-400" />
+                        <span className="font-bold text-white text-sm">{req.company_name}</span>
+                        <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${
+                          req.status === 'INTEREST_EXPRESSED'        ? 'bg-indigo-500/20 text-indigo-300 border-indigo-500/30' :
+                          req.status === 'PROPOSAL_INITIATED'        ? 'bg-amber-500/20 text-amber-300 border-amber-500/30' :
+                          req.status === 'PROPOSAL_UNDER_DISCUSSION' ? 'bg-orange-500/20 text-orange-300 border-orange-500/30' :
+                          req.status === 'SUPPORT_CONFIRMED'         ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30' :
+                          req.status === 'FUNDING_CONFIRMED'         ? 'bg-teal-500/20 text-teal-300 border-teal-500/30' :
+                          req.status === 'PROJECT_FUNDED'            ? 'bg-green-500/20 text-green-300 border-green-500/30' :
+                          'bg-slate-700 text-slate-400 border-slate-600'
+                        }`}>
+                          {req.status.replace(/_/g, ' ')}
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-400">Contact: <strong className="text-white">{req.contact_email}</strong></p>
                     </div>
-                    <p className="text-xs text-slate-300">Contact Email: <strong>{req.contact_email}</strong></p>
+                    <span className="text-xs font-extrabold text-emerald-400 shrink-0">
+                      {req.pledged_amount || 'Support Offered'}
+                    </span>
                   </div>
-                  <span className="text-xs font-extrabold text-emerald-400">
-                    {req.pledged_amount || 'Support Offered'}
-                  </span>
-                </div>
 
-                <div className="p-4 rounded-2xl bg-slate-950/70 border border-slate-800 space-y-2">
-                  <span className="text-[10px] uppercase font-bold text-slate-400">Proposal Message</span>
-                  <p className="text-xs text-slate-200 leading-relaxed">{req.message}</p>
-                </div>
+                  <div className="p-3 rounded-2xl bg-slate-950/70 border border-slate-800 space-y-1.5 text-xs">
+                    <span className="text-[10px] uppercase font-bold text-slate-400">Interest Message</span>
+                    <p className="text-slate-200 leading-relaxed">{req.message}</p>
+                    {req.proposal_summary && (
+                      <p className="text-slate-300 pt-1 border-t border-slate-800">Proposal: {req.proposal_summary}</p>
+                    )}
+                  </div>
 
-                {/* Interactive Status Controls */}
-                <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-slate-800">
                   <div className="text-xs text-slate-400">
-                    Mode of Support: <strong className="text-white">{req.support_type}</strong>
+                    Support Type: <strong className="text-white">{req.support_type}</strong>
+                    {req.confirmed_at && <span className="ml-4">Confirmed: <strong>{new Date(req.confirmed_at).toLocaleDateString()}</strong></span>}
                   </div>
 
-                  <div className="flex items-center gap-2">
-                    {req.status !== 'PROPOSAL_UNDER_DISCUSSION' && req.status !== 'SUPPORT_CONFIRMED' && (
+                  {/* University-role action buttons — correct wording, no 'Fund Project' */}
+                  <div className="flex flex-wrap items-center gap-2 pt-3 border-t border-slate-800">
+                    {req.status === 'INTEREST_EXPRESSED' && (
                       <button
-                        onClick={() => handleUpdateStatus(req.id, 'PROPOSAL_UNDER_DISCUSSION')}
-                        className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-amber-300 border border-slate-700"
+                        onClick={() => handleUpdateStatus(req.id, 'PROPOSAL_INITIATED', 'University initiating formal proposal with industry partner.')}
+                        className="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold flex items-center gap-1.5"
                       >
+                        <FileText className="w-3.5 h-3.5" />
+                        Initiate Proposal
+                      </button>
+                    )}
+                    {req.status === 'PROPOSAL_INITIATED' && (
+                      <button
+                        onClick={() => handleUpdateStatus(req.id, 'PROPOSAL_UNDER_DISCUSSION', 'University and Industry now in active proposal discussion.')}
+                        className="px-3 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold flex items-center gap-1.5"
+                      >
+                        <Layers className="w-3.5 h-3.5" />
                         Move to Discussion
                       </button>
                     )}
-
-                    {req.status !== 'SUPPORT_CONFIRMED' && (
+                    {req.status === 'PROPOSAL_UNDER_DISCUSSION' && (
                       <button
-                        onClick={() => handleUpdateStatus(req.id, 'SUPPORT_CONFIRMED')}
-                        className="px-4 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-xs font-bold text-white shadow-md flex items-center gap-1.5"
+                        onClick={() => handleUpdateStatus(req.id, 'SUPPORT_CONFIRMED', 'University has confirmed support agreement with industry partner.')}
+                        className="px-4 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center gap-1.5 shadow-md"
                       >
                         <CheckCircle className="w-3.5 h-3.5" />
-                        <span>Confirm Support &amp; Finalize Project</span>
+                        Confirm Support Agreement
                       </button>
                     )}
-
                     {req.status === 'SUPPORT_CONFIRMED' && (
                       <span className="px-3 py-1.5 rounded-xl bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-xs font-bold flex items-center gap-1.5">
                         <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                        <span>Partnership Confirmed &amp; Logged</span>
+                        Support Confirmed — Awaiting Industry Funding Confirmation
+                      </span>
+                    )}
+                    {req.status === 'FUNDING_CONFIRMED' && (
+                      <span className="px-3 py-1.5 rounded-xl bg-teal-500/20 text-teal-300 border border-teal-500/30 text-xs font-bold flex items-center gap-1.5">
+                        <CheckCircle2 className="w-4 h-4 text-teal-400" />
+                        Funding Confirmed — Awaiting Project Funded Closure
+                      </span>
+                    )}
+                    {req.status === 'PROJECT_FUNDED' && (
+                      <span className="px-3 py-1.5 rounded-xl bg-green-500/20 text-green-300 border border-green-500/30 text-xs font-bold flex items-center gap-1.5">
+                        <Award className="w-4 h-4 text-green-400" />
+                        Project Funded &amp; Problem Resolved ✓
                       </span>
                     )}
                   </div>
                 </div>
-              </div>
-            ))
-          )}
+              ))
+            )}
+          </div>
         </div>
       )}
 
@@ -458,7 +543,7 @@ export const UniversityDashboardPage = () => {
               {
                 step: '2',
                 title: 'State Admin 1-Step Approve & Assign',
-                desc: 'State Nodal Admin reviews the problem, evidence images, and AI recommendations, executing 1-step Approve & Assign to allocate the project to your university institution in PostgreSQL.',
+                desc: 'State Nodal Admin reviews the problem, evidence images, and AI recommendations, executing 1-step Approve & Assign to allocate the project to your university in PostgreSQL.',
                 status: 'ASSIGNED'
               },
               {
@@ -469,21 +554,33 @@ export const UniversityDashboardPage = () => {
               },
               {
                 step: '4',
-                title: 'Milestone Updates & R&D Prototype Submission',
-                desc: 'Post lab progress updates, test metrics, and submit the final R&D solution prototype details along with GitHub repository link.',
+                title: 'Milestone Updates & R&D Solution Submission',
+                desc: 'Post lab progress updates, test metrics, and submit the final R&D solution prototype details including GitHub repository link.',
                 status: 'SOLUTION_SUBMITTED'
               },
               {
                 step: '5',
                 title: 'State Admin Solution Validation',
-                desc: 'State Admin reviews the solution prototype. Upon approval, status becomes SOLUTION_APPROVED, releasing the solution to Industry Opportunities.',
+                desc: 'State Admin reviews and validates the solution prototype. Upon approval, status becomes SOLUTION_APPROVED — the solution is ready for industry support.',
                 status: 'SOLUTION_APPROVED'
               },
               {
                 step: '6',
-                title: 'Industry CSR Co-Funding & Project Resolution',
-                desc: 'Corporate CSR partners (e.g. Tata Steel CSR) express interest, pledge grants, and co-fund pilot manufacturing. University confirms partnership → COMPLETED.',
-                status: 'SUPPORT_CONFIRMED → COMPLETED'
+                title: 'University Seeks Industry Support',
+                desc: 'University clicks "Seek Industry Support" — this sets the project to INDUSTRY_SUPPORT_REQUESTED and makes it visible to Industry partners. No funding is created at this stage.',
+                status: 'INDUSTRY_SUPPORT_REQUESTED'
+              },
+              {
+                step: '7',
+                title: 'Industry Expresses Interest & Proposal Negotiation',
+                desc: 'Industry user clicks "Express Funding Interest". University and Industry negotiate directly: Initiate Proposal → Move to Discussion → University Confirms Support → Industry Confirms Funding.',
+                status: 'PROPOSAL_UNDER_DISCUSSION → SUPPORT_CONFIRMED → FUNDING_CONFIRMED'
+              },
+              {
+                step: '8',
+                title: 'Project Funded — Problem Resolved',
+                desc: 'Once Industry confirms funding and the project is marked PROJECT_FUNDED, the challenge status transitions to COMPLETED. Admin monitors this as read-only governance data.',
+                status: 'PROJECT_FUNDED → COMPLETED'
               }
             ].map(s => (
               <div key={s.step} className="p-4 rounded-2xl bg-slate-950 border border-slate-800 flex items-start gap-4">

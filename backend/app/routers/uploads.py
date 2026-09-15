@@ -95,6 +95,19 @@ def get_uploaded_file(
     file_path = os.path.join(upload_dir, filename)
 
     if not os.path.exists(file_path):
+        from app.config import get_settings
+        app_settings = get_settings()
+        if app_settings.SUPABASE_URL and app_settings.SUPABASE_KEY:
+            try:
+                from supabase import create_client
+                supabase_client = create_client(app_settings.SUPABASE_URL, app_settings.SUPABASE_KEY)
+                res = supabase_client.storage.from_(app_settings.SUPABASE_BUCKET).download(filename)
+                from fastapi.responses import Response
+                ext = os.path.splitext(filename)[1].lower()
+                media_type = "image/png" if ext == ".png" else ("image/webp" if ext == ".webp" else "image/jpeg")
+                return Response(content=res, media_type=media_type)
+            except Exception:
+                pass
         raise HTTPException(status_code=404, detail="File not found.")
 
     return FileResponse(file_path)

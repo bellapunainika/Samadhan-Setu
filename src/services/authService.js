@@ -16,23 +16,28 @@ const USER_KEY  = 'samadhan_user';
 // ── Token helpers ────────────────────────────────────────────────────────────
 
 export function saveSession(tokenResponse) {
-  localStorage.setItem(TOKEN_KEY, tokenResponse.access_token);
-  localStorage.setItem(USER_KEY, JSON.stringify({
+  sessionStorage.setItem(TOKEN_KEY, tokenResponse.access_token);
+  sessionStorage.setItem(USER_KEY, JSON.stringify({
     id:        tokenResponse.user_id,
     email:     tokenResponse.email,
     full_name: tokenResponse.full_name,
     role:      tokenResponse.role,
   }));
+  // Clean up legacy localStorage keys
+  localStorage.removeItem(TOKEN_KEY);
+  localStorage.removeItem(USER_KEY);
 }
 
 export function clearSession() {
+  sessionStorage.removeItem(TOKEN_KEY);
+  sessionStorage.removeItem(USER_KEY);
   localStorage.removeItem(TOKEN_KEY);
   localStorage.removeItem(USER_KEY);
 }
 
 export function getStoredUser() {
   try {
-    const raw = localStorage.getItem(USER_KEY);
+    const raw = sessionStorage.getItem(USER_KEY);
     return raw ? JSON.parse(raw) : null;
   } catch {
     return null;
@@ -40,7 +45,7 @@ export function getStoredUser() {
 }
 
 export function hasToken() {
-  return !!localStorage.getItem(TOKEN_KEY);
+  return !!sessionStorage.getItem(TOKEN_KEY);
 }
 
 // ── API calls ────────────────────────────────────────────────────────────────

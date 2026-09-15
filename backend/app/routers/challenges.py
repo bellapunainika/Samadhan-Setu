@@ -130,6 +130,26 @@ def create_challenge(
 
 
 @router.get(
+    "",
+    response_model=List[ChallengeOut],
+    summary="Get all challenges (public feed) — no authentication required",
+)
+def get_all_challenges(
+    limit: int = 100,
+    db: Session = Depends(get_db)
+):
+    """Public feed: all challenges except REJECTED, newest first."""
+    challenges = (
+        db.query(Challenge)
+        .filter(Challenge.status != ChallengeStatus.REJECTED)
+        .order_by(Challenge.created_at.desc())
+        .limit(limit)
+        .all()
+    )
+    return challenges
+
+
+@router.get(
     "/my",
     response_model=List[ChallengeOut],
     summary="Get challenges submitted by the authenticated citizen",

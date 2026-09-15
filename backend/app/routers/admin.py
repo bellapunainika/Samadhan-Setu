@@ -22,10 +22,10 @@ from app.schemas.admin import (
     ChallengeAssignRequest,
     AuditLogOut
 )
+from app.schemas.solution import SolutionSubmissionOut, SolutionReviewRequest
+from app.schemas.industry import IndustryInterestOut
 from app.models.solution import SolutionSubmission, SolutionStatus
 from app.models.industry import IndustryInterest, IndustryInterestStatus
-from app.schemas.solution import SolutionSubmissionOut, SolutionReviewRequest
-from app.schemas.industry import IndustryInterestOut, IndustryReviewRequest
 from app.auth.dependencies import get_current_user
 
 router = APIRouter(prefix="/api/admin", tags=["State Governance Admin"])
@@ -560,65 +560,22 @@ def review_solution(
 @router.get(
     "/industry-requests",
     response_model=List[IndustryInterestOut],
-    summary="Get all industry CSR/partnership interest requests"
+    summary="[READ-ONLY MONITORING] View all industry CSR/partnership interest records"
 )
 def get_industry_requests(
-    admin: User = Depends(require_admin),
+    admin: User = Depends(require_admin_or_officer),
     db: Session = Depends(get_db)
 ):
+    """
+    Admin/Officer read-only monitoring view of all industry partnership records.
+    Shows: project, university (via challenge), industry, proposal stage,
+           support type, confirmation date, and non-confidential details.
+
+    Admin does NOT accept or decline the commercial funding agreement.
+    The University and Industry manage the proposal directly.
+    """
     requests = db.query(IndustryInterest).order_by(IndustryInterest.created_at.desc()).all()
     return requests
-
-
-@router.post(
-    "/industry-requests/{request_id}/review",
-    response_model=IndustryInterestOut,
-    summary="Review industry interest request (ACCEPT / DECLINE)"
-)
-def review_industry_request(
-    request_id: str,
-    payload: IndustryReviewRequest,
-    admin: User = Depends(require_admin),
-    db: Session = Depends(get_db)
-):
-    try:
-        val = uuid.UUID(request_id)
-        req = db.query(IndustryInterest).filter(IndustryInterest.id == str(val)).first()
-    except (ValueError, AttributeError):
-        req = None
-
-    if not req:
-        raise HTTPException(status_code=404, detail="Industry interest request not found.")
-
-    action_upper = payload.action.upper()
-    if action_upper == "ACCEPT":
-        req.status = IndustryInterestStatus.ACCEPTED
-        challenge = db.query(Challenge).filter(Challenge.id == req.challenge_id).first()
-        if challenge:
-            challenge.status = ChallengeStatus.COMPLETED
-            challenge.updated_at = datetime.now(timezone.utc)
-    elif action_upper in ("DECLINE", "REJECT"):
-        req.status = IndustryInterestStatus.DECLINED
-    else:
-        raise HTTPException(status_code=400, detail="Invalid action. Must be ACCEPT or DECLINE.")
-
-    req.admin_response = payload.response
-    req.reviewed_by = admin.id
-    req.reviewed_at = datetime.now(timezone.utc)
-
-    audit = AdminAction(
-        actor_id=admin.id,
-        action_type=f"REVIEW_INDUSTRY_{action_upper}",
-        entity_type="INDUSTRY_INTEREST",
-        entity_id=str(req.id),
-        old_value={"status": "PENDING_ADMIN_REVIEW"},
-        new_value={"status": req.status},
-        reason=payload.response or f"Industry request {req.status}."
-    )
-    db.add(audit)
-    db.commit()
-    db.refresh(req)
-    return req
 
 
 @router.get(
@@ -634,9 +591,23 @@ def get_admin_stats(
     assigned = db.query(Challenge).filter(Challenge.status == ChallengeStatus.ASSIGNED).count()
     in_progress = db.query(Challenge).filter(Challenge.status == ChallengeStatus.IN_PROGRESS).count()
     solutions_pending = db.query(Challenge).filter(Challenge.status == ChallengeStatus.SOLUTION_SUBMITTED).count()
+    industry_support_requested = db.query(Challenge).filter(Challenge.status == ChallengeStatus.INDUSTRY_SUPPORT_REQUESTED).count()
     completed = db.query(Challenge).filter(Challenge.status.in_([ChallengeStatus.COMPLETED, ChallengeStatus.VALIDATED])).count()
     rejected = db.query(Challenge).filter(Challenge.status == ChallengeStatus.REJECTED).count()
-    industry_pending = db.query(IndustryInterest).filter(IndustryInterest.status == IndustryInterestStatus.PENDING_ADMIN_REVIEW).count()
+    # Active industry partnerships (not declined/withdrawn)
+    industry_active = db.query(IndustryInterest).filter(
+        IndustryInterest.status.notin_([
+            IndustryInterestStatus.DECLINED,
+            IndustryInterestStatus.WITHDRAWN
+        ])
+    ).count()
+    industry_confirmed = db.query(IndustryInterest).filter(
+        IndustryInterest.status.in_([
+            IndustryInterestStatus.SUPPORT_CONFIRMED,
+            IndustryInterestStatus.FUNDING_CONFIRMED,
+            IndustryInterestStatus.PROJECT_FUNDED,
+        ])
+    ).count()
 
     return {
         "pending_review": pending_review,
@@ -644,8 +615,10 @@ def get_admin_stats(
         "assigned": assigned,
         "in_progress": in_progress,
         "solutions_pending": solutions_pending,
+        "industry_support_requested": industry_support_requested,
         "completed": completed,
         "rejected": rejected,
-        "industry_pending": industry_pending,
-        "total_challenges": pending_review + approved + assigned + in_progress + solutions_pending + completed + rejected
+        "industry_active_partnerships": industry_active,
+        "industry_confirmed_funded": industry_confirmed,
+        "total_challenges": pending_review + approved + assigned + in_progress + solutions_pending + industry_support_requested + completed + rejected
     }

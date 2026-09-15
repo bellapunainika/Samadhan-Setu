@@ -379,15 +379,23 @@ def configure_team(
 
 
 @router.post(
-    "/challenges/{challenge_identifier}/request-industry-support",
-    summary="Request Industry Support after solution is approved (SOLUTION_APPROVED)"
+    "/challenges/{challenge_identifier}/seek-industry-support",
+    response_model=ChallengeOut,
+    summary="Seek Industry Support after solution is approved (SOLUTION_APPROVED → INDUSTRY_SUPPORT_REQUESTED)"
 )
-def request_industry_support(
+def seek_industry_support(
     challenge_identifier: str,
-    payload: IndustrySupportRequestPayload,
     user: User = Depends(require_university),
     db: Session = Depends(get_db)
 ):
+    """
+    University action: signals that a validated solution is open to industry funding.
+    Sets ChallengeStatus to INDUSTRY_SUPPORT_REQUESTED.
+
+    IMPORTANT: This does NOT create any IndustryInterest record.
+    A real IndustryInterest is only created when an actual Industry user
+    calls POST /industry/opportunities/{id}/express-interest.
+    """
     university = resolve_user_university(user, db)
     challenge = None
     try:
@@ -402,47 +410,50 @@ def request_industry_support(
     if not challenge:
         raise HTTPException(status_code=404, detail="Challenge not found.")
 
-    if challenge.status not in (ChallengeStatus.SOLUTION_APPROVED, ChallengeStatus.COMPLETED):
+    # Verify the solution has been approved by Admin first
+    if challenge.status != ChallengeStatus.SOLUTION_APPROVED:
         raise HTTPException(
             status_code=400,
-            detail=f"Cannot request industry support for challenge with status '{challenge.status}'. Solution must be approved first."
+            detail=f"Cannot seek industry support for challenge with status '{challenge.status}'. "
+                   "Solution must be SOLUTION_APPROVED first."
         )
 
-    from app.models.industry import IndustryInterest, IndustryInterestStatus
-    
-    # Check existing request
-    existing = db.query(IndustryInterest).filter(
-        IndustryInterest.challenge_id == challenge.id,
-        IndustryInterest.industry_user_id == user.id
+    # Verify the challenge is assigned to this university
+    assignment = db.query(ChallengeAssignment).filter(
+        ChallengeAssignment.challenge_id == challenge.id,
+        ChallengeAssignment.university_id == university.id,
+        ChallengeAssignment.status == "ACTIVE"
     ).first()
 
-    if existing:
-        return existing
+    if not assignment:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="This challenge is not assigned to your university."
+        )
 
-    req = IndustryInterest(
-        challenge_id=challenge.id,
-        industry_user_id=user.id,
-        company_name=f"{university.short_name} Solution Partnership",
-        contact_email=user.email,
-        support_type=payload.support_type,
-        message=f"{payload.purpose}: {payload.message}",
-        status=IndustryInterestStatus.FUNDING_INTEREST
-    )
-    db.add(req)
+    # Set the flag — no IndustryInterest record created here
+    challenge.status = ChallengeStatus.INDUSTRY_SUPPORT_REQUESTED
+    challenge.updated_at = datetime.now(timezone.utc)
+
     db.commit()
-    db.refresh(req)
-    return req
+    db.refresh(challenge)
+    return challenge
 
 
 @router.get(
     "/industry-interests",
     response_model=List[IndustryInterestOut],
-    summary="Get all industry funding interests expressed for this university's assigned challenges"
+    summary="Get all real industry funding interests expressed for this university's assigned challenges"
 )
 def get_university_industry_interests(
     user: User = Depends(require_university),
     db: Session = Depends(get_db)
 ):
+    """
+    Returns IndustryInterest records created by real Industry users
+    for challenges assigned to this university.
+    """
+    from app.models.industry import IndustryInterest
     university = resolve_user_university(user, db)
     assigned_challenge_ids = db.query(ChallengeAssignment.challenge_id).filter(
         ChallengeAssignment.university_id == university.id

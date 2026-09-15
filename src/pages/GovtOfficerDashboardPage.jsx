@@ -158,42 +158,76 @@ export function GovtOfficerDashboardPage() {
         })}
       </div>
 
-      {/* Top 6 KPI Metric Cards */}
+      {/* Top 6 KPI Metric Cards — Live from PostgreSQL via getAdminStats() */}
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3 text-left">
         <div className="p-4 rounded-2xl bg-slate-900/80 border border-slate-800 space-y-1">
-          <span className="text-[10px] text-slate-400 font-bold uppercase block">Statewide Submissions</span>
-          <div className="text-2xl font-black text-white">1,482</div>
-          <span className="text-[10px] text-teal-400 font-semibold block">12 Live + Historical</span>
+          <span className="text-[10px] text-slate-400 font-bold uppercase block">Total Submissions</span>
+          <div className="text-2xl font-black text-white">
+            {stats ? stats.total_challenges ?? 0 : (
+              <span className="text-slate-500 text-lg animate-pulse">…</span>
+            )}
+          </div>
+          <span className="text-[10px] text-teal-400 font-semibold block">
+            {stats ? `${(stats.completed ?? 0)} Resolved` : 'Loading…'}
+          </span>
         </div>
 
         <div className="p-4 rounded-2xl bg-slate-900/80 border border-slate-800 space-y-1">
           <span className="text-[10px] text-slate-400 font-bold uppercase block">Active R&amp;D Allocations</span>
-          <div className="text-2xl font-black text-indigo-400">142</div>
-          <span className="text-[10px] text-indigo-300 font-semibold block">{activeProjects.length} Live Seeded</span>
+          <div className="text-2xl font-black text-indigo-400">
+            {stats ? (stats.assigned ?? 0) + (stats.in_progress ?? 0) : (
+              <span className="text-slate-500 text-lg animate-pulse">…</span>
+            )}
+          </div>
+          <span className="text-[10px] text-indigo-300 font-semibold block">
+            {stats ? `${activeProjects.length} Live DB Records` : 'Loading…'}
+          </span>
         </div>
 
         <div className="p-4 rounded-2xl bg-slate-900/80 border border-slate-800 space-y-1">
-          <span className="text-[10px] text-slate-400 font-bold uppercase block">Corporate CSR Pledged</span>
-          <div className="text-2xl font-black text-amber-400">₹18.45 Cr</div>
-          <span className="text-[10px] text-amber-300 font-semibold block">5 Corporate Donors</span>
+          <span className="text-[10px] text-slate-400 font-bold uppercase block">Industry Partnerships</span>
+          <div className="text-2xl font-black text-amber-400">
+            {industryReqs.length > 0 ? industryReqs.length : (
+              stats ? stats.industry_active_partnerships ?? 0 : (
+                <span className="text-slate-500 text-lg animate-pulse">…</span>
+              )
+            )}
+          </div>
+          <span className="text-[10px] text-amber-300 font-semibold block">
+            {industryReqs.filter(r => ['SUPPORT_CONFIRMED','FUNDING_CONFIRMED','PROJECT_FUNDED'].includes(r.status)).length} Confirmed
+          </span>
         </div>
 
         <div className="p-4 rounded-2xl bg-slate-900/80 border border-slate-800 space-y-1">
-          <span className="text-[10px] text-slate-400 font-bold uppercase block">Citizens Benefited</span>
-          <div className="text-2xl font-black text-emerald-400">4.2 Million</div>
-          <span className="text-[10px] text-emerald-300 font-semibold block">Across 24 Districts</span>
+          <span className="text-[10px] text-slate-400 font-bold uppercase block">Completed &amp; Resolved</span>
+          <div className="text-2xl font-black text-emerald-400">
+            {stats ? stats.completed ?? 0 : (
+              <span className="text-slate-500 text-lg animate-pulse">…</span>
+            )}
+          </div>
+          <span className="text-[10px] text-emerald-300 font-semibold block">
+            {completedProjects.length} Live DB Records
+          </span>
         </div>
 
         <div className="p-4 rounded-2xl bg-slate-900/80 border border-slate-800 space-y-1">
-          <span className="text-[10px] text-slate-400 font-bold uppercase block">Avg R&amp;D Turnaround</span>
-          <div className="text-2xl font-black text-purple-400">38 Days</div>
-          <span className="text-[10px] text-purple-300 font-semibold block">-14% vs 2025 Target</span>
+          <span className="text-[10px] text-slate-400 font-bold uppercase block">Solutions Submitted</span>
+          <div className="text-2xl font-black text-purple-400">
+            {stats ? stats.solutions_pending ?? 0 : (
+              <span className="text-slate-500 text-lg animate-pulse">…</span>
+            )}
+          </div>
+          <span className="text-[10px] text-purple-300 font-semibold block">Awaiting State Review</span>
         </div>
 
         <div className="p-4 rounded-2xl bg-slate-900/80 border border-slate-800 space-y-1">
-          <span className="text-[10px] text-slate-400 font-bold uppercase block">State Resolution Rate</span>
-          <div className="text-2xl font-black text-teal-400">88.4%</div>
-          <span className="text-[10px] text-teal-300 font-semibold block">Verified by Nodal Cell</span>
+          <span className="text-[10px] text-slate-400 font-bold uppercase block">Pending Admin Review</span>
+          <div className="text-2xl font-black text-teal-400">
+            {stats ? stats.pending_review ?? 0 : (
+              <span className="text-slate-500 text-lg animate-pulse">…</span>
+            )}
+          </div>
+          <span className="text-[10px] text-teal-300 font-semibold block">Under Review Queue</span>
         </div>
       </div>
 
@@ -300,12 +334,14 @@ export function GovtOfficerDashboardPage() {
 
               <div className="grid grid-cols-2 gap-3">
                 {[
-                  { label: 'Pending Admin Review', count: stats?.pending_review || 2, color: 'text-amber-400' },
-                  { label: 'Assigned to University', count: stats?.assigned || 2, color: 'text-indigo-400' },
-                  { label: 'In Progress R&D', count: stats?.in_progress || 2, color: 'text-blue-400' },
-                  { label: 'Solution Submitted', count: stats?.solutions_pending || 2, color: 'text-purple-400' },
-                  { label: 'Completed & Resolved', count: stats?.completed || 1, color: 'text-emerald-400' },
-                  { label: 'Rejected Out-of-Scope', count: stats?.rejected || 1, color: 'text-rose-400' },
+                  { label: 'Pending Admin Review', count: stats?.pending_review || 0, color: 'text-amber-400' },
+                  { label: 'Assigned to University', count: stats?.assigned || 0, color: 'text-indigo-400' },
+                  { label: 'In Progress R&D', count: stats?.in_progress || 0, color: 'text-blue-400' },
+                  { label: 'Solution Submitted', count: stats?.solutions_pending || 0, color: 'text-purple-400' },
+                  { label: 'Seeking Industry Support', count: stats?.industry_support_requested || 0, color: 'text-emerald-400' },
+                  { label: 'Active Partnerships', count: stats?.industry_active_partnerships || 0, color: 'text-teal-400' },
+                  { label: 'Completed & Resolved', count: stats?.completed || 0, color: 'text-green-400' },
+                  { label: 'Rejected Out-of-Scope', count: stats?.rejected || 0, color: 'text-rose-400' },
                 ].map(st => (
                   <div key={st.label} className="p-3.5 rounded-2xl bg-slate-950/70 border border-slate-800 text-center">
                     <div className="text-xs text-slate-400 font-medium">{st.label}</div>
@@ -459,48 +495,78 @@ export function GovtOfficerDashboardPage() {
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-lg font-bold text-white">Corporate CSR &amp; Industry Support Oversight</h2>
-              <p className="text-xs text-slate-400">Participating corporate partners, total pledged grants, and focus sectors</p>
+              <p className="text-xs text-slate-400">Read-only monitoring of real industry partnership records from the platform database.</p>
             </div>
             <span className="px-3 py-1 rounded-full text-xs font-bold bg-slate-800 text-teal-300 border border-slate-700">
-              STATE ANALYTICS • DEMO DATA
+              👁 READ-ONLY OVERSIGHT
             </span>
           </div>
 
+          {/* KPI Tiles — combined real + context */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="p-5 rounded-3xl bg-slate-900/80 border border-slate-800 space-y-1">
-              <span className="text-xs text-slate-400 font-bold uppercase block">Total Corporate Grants</span>
-              <div className="text-3xl font-black text-amber-400">₹18.45 Crore</div>
-              <span className="text-[11px] text-slate-400">Committed CSR Funds</span>
+              <span className="text-xs text-slate-400 font-bold uppercase block">Active Interests &amp; Proposals</span>
+              <div className="text-3xl font-black text-indigo-400">
+                {industryReqs.filter(r => ['INTEREST_EXPRESSED','PROPOSAL_INITIATED','PROPOSAL_UNDER_DISCUSSION'].includes(r.status)).length}
+              </div>
+              <span className="text-[11px] text-slate-400">Live from platform DB</span>
             </div>
             <div className="p-5 rounded-3xl bg-slate-900/80 border border-slate-800 space-y-1">
-              <span className="text-xs text-slate-400 font-bold uppercase block">Funded Projects</span>
-              <div className="text-3xl font-black text-emerald-400">57 Projects</div>
-              <span className="text-[11px] text-slate-400">Across 24 Districts</span>
+              <span className="text-xs text-slate-400 font-bold uppercase block">Confirmed Partnerships</span>
+              <div className="text-3xl font-black text-emerald-400">
+                {industryReqs.filter(r => ['SUPPORT_CONFIRMED','FUNDING_CONFIRMED'].includes(r.status)).length}
+              </div>
+              <span className="text-[11px] text-slate-400">Support or Funding Confirmed</span>
             </div>
             <div className="p-5 rounded-3xl bg-slate-900/80 border border-slate-800 space-y-1">
-              <span className="text-xs text-slate-400 font-bold uppercase block">Corporate Partners</span>
-              <div className="text-3xl font-black text-indigo-400">5 Enterprises</div>
-              <span className="text-[11px] text-slate-400">Active MoUs Signed</span>
+              <span className="text-xs text-slate-400 font-bold uppercase block">Projects Funded</span>
+              <div className="text-3xl font-black text-amber-400">
+                {industryReqs.filter(r => r.status === 'PROJECT_FUNDED').length}
+              </div>
+              <span className="text-[11px] text-slate-400">Fully resolved via industry support</span>
             </div>
           </div>
 
-          <div className="space-y-3">
-            {CORPORATE_PARTNERS.map(cp => (
-              <div key={cp.company} className="p-5 rounded-3xl bg-slate-900/80 border border-slate-800 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <Building2 className="w-4 h-4 text-emerald-400" />
-                    <span className="font-bold text-white text-base">{cp.company}</span>
-                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                      {cp.projects} Projects Funded
-                    </span>
+          {/* Live Partnership Table */}
+          {industryReqs.length === 0 ? (
+            <div className="py-12 px-6 text-center space-y-3 bg-slate-900/40 border border-slate-800 rounded-3xl">
+              <Building2 className="w-10 h-10 text-slate-500 mx-auto" />
+              <h4 className="text-sm font-bold text-white">No Industry Partnership Records Yet</h4>
+              <p className="text-xs text-slate-400">
+                Industry partnerships appear here after an Industry user expresses interest in a university solution.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {industryReqs.map(req => (
+                <div key={req.id} className="p-5 rounded-3xl bg-slate-900/80 border border-slate-800 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                  <div className="space-y-1.5">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <Building2 className="w-4 h-4 text-emerald-400" />
+                      <span className="font-bold text-white text-base">{req.company_name}</span>
+                      <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold border whitespace-nowrap ${
+                        req.status === 'INTEREST_EXPRESSED'        ? 'bg-indigo-500/20 text-indigo-300 border-indigo-500/30' :
+                        req.status === 'PROPOSAL_INITIATED'        ? 'bg-amber-500/20 text-amber-300 border-amber-500/30' :
+                        req.status === 'PROPOSAL_UNDER_DISCUSSION' ? 'bg-orange-500/20 text-orange-300 border-orange-500/30' :
+                        req.status === 'SUPPORT_CONFIRMED'         ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30' :
+                        req.status === 'FUNDING_CONFIRMED'         ? 'bg-teal-500/20 text-teal-300 border-teal-500/30' :
+                        req.status === 'PROJECT_FUNDED'            ? 'bg-green-500/20 text-green-300 border-green-500/30' :
+                        'bg-slate-700 text-slate-400 border-slate-600'
+                      }`}>
+                        {req.status?.replace(/_/g, ' ')}
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-300">Support Type: <strong className="text-white">{req.support_type || '—'}</strong></p>
+                    <p className="text-[11px] text-slate-400">
+                      Contact: {req.contact_email}
+                      {req.confirmed_at && <span className="ml-3">Confirmed: <strong className="text-emerald-400">{new Date(req.confirmed_at).toLocaleDateString()}</strong></span>}
+                    </p>
                   </div>
-                  <p className="text-xs text-slate-300">Focus Sectors: <strong>{cp.sectors}</strong></p>
+                  <span className="text-base font-black text-amber-400 shrink-0">{req.pledged_amount || '—'}</span>
                 </div>
-                <span className="text-base font-black text-amber-400 shrink-0">{cp.totalGrant}</span>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 

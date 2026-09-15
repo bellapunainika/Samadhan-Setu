@@ -13,16 +13,17 @@ from app.database import Base
 
 
 class ChallengeStatus(str, enum.Enum):
-    SUBMITTED         = "SUBMITTED"
-    UNDER_REVIEW      = "UNDER_REVIEW"
-    APPROVED          = "APPROVED"
-    REJECTED          = "REJECTED"
-    ASSIGNED          = "ASSIGNED"
-    IN_PROGRESS       = "IN_PROGRESS"
-    SOLUTION_SUBMITTED = "SOLUTION_SUBMITTED"
-    SOLUTION_APPROVED  = "SOLUTION_APPROVED"
-    COMPLETED         = "COMPLETED"
-    VALIDATED         = "VALIDATED"
+    SUBMITTED                   = "SUBMITTED"
+    UNDER_REVIEW                = "UNDER_REVIEW"
+    APPROVED                    = "APPROVED"
+    REJECTED                    = "REJECTED"
+    ASSIGNED                    = "ASSIGNED"
+    IN_PROGRESS                 = "IN_PROGRESS"
+    SOLUTION_SUBMITTED          = "SOLUTION_SUBMITTED"
+    SOLUTION_APPROVED           = "SOLUTION_APPROVED"
+    INDUSTRY_SUPPORT_REQUESTED  = "INDUSTRY_SUPPORT_REQUESTED"  # University seeks industry funding
+    COMPLETED                   = "COMPLETED"
+    VALIDATED                   = "VALIDATED"
 
 
 class PriorityLabel(str, enum.Enum):

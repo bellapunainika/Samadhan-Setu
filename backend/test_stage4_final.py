@@ -154,14 +154,13 @@ def run_tests():
 
     assert_test("12. Admin reviews & accepts solution -> SOLUTION_APPROVED", sol_rev_res.status_code == 200 and sol_rev_res.json().get("status") == "SOLUTION_APPROVED", sol_rev_res.text)
 
-    # Step G: University requests Industry Support
-    ind_req_res = client.post(f"/api/universities/challenges/{short_id}/request-industry-support", json={
-        "support_type": "CSR Grant & Pilot Deployment",
-        "purpose": "Manufacture 10 village filtration units",
-        "message": "Seeking ₹12,00,000 CSR funding for pilot installation across 5 Gram Panchayats."
-    }, headers=headers_univ_a)
+    # Step G: University seeks Industry Support (SOLUTION_APPROVED → INDUSTRY_SUPPORT_REQUESTED)
+    ind_req_res = client.post(f"/api/universities/challenges/{short_id}/seek-industry-support",
+                              headers=headers_univ_a)
 
-    assert_test("13. University requests Industry Support -> Industry Request created", ind_req_res.status_code == 200 and "id" in ind_req_res.json(), ind_req_res.text)
+    assert_test("13. University seeks Industry Support → INDUSTRY_SUPPORT_REQUESTED",
+                ind_req_res.status_code == 200 and ind_req_res.json().get("status") == "INDUSTRY_SUPPORT_REQUESTED",
+                ind_req_res.text)
 
     # Step H: Industry views opportunity & expresses interest
     opps_res = client.get("/api/industry/opportunities", headers=headers_ind)
@@ -176,20 +175,43 @@ def run_tests():
     ind_req_data = ind_expr_res.json() if ind_expr_res.status_code == 200 else {}
     req_id = ind_req_data.get("id")
 
-    assert_test("14. Industry expresses interest -> status FUNDING_INTEREST", ind_expr_res.status_code == 200 and ind_req_data.get("status") in ("FUNDING_INTEREST", "PENDING_ADMIN_REVIEW"), ind_expr_res.text)
+    assert_test("14. Industry expresses interest → status INTEREST_EXPRESSED",
+                ind_expr_res.status_code == 200 and ind_req_data.get("status") == "INTEREST_EXPRESSED",
+                ind_expr_res.text)
 
-    # Step I: Admin accepts Industry request -> COMPLETED (Problem Resolved)
-    ind_admin_res = client.post(f"/api/admin/industry-requests/{req_id}/review", json={
-        "action": "ACCEPT",
-        "response": "Tripartite MoU approved by State Nodal Agency."
-    }, headers=headers_admin)
+    # Step I: Walk the full role-gated state machine to reach PROJECT_FUNDED → COMPLETED
+    # Industry: INTEREST_EXPRESSED → PROPOSAL_INITIATED
+    step_i1 = client.post(f"/api/industry/proposals/{req_id}/update-status", json={
+        "status": "PROPOSAL_INITIATED"
+    }, headers=headers_ind)
+    # Industry: PROPOSAL_INITIATED → PROPOSAL_UNDER_DISCUSSION
+    step_i2 = client.post(f"/api/industry/proposals/{req_id}/update-status", json={
+        "status": "PROPOSAL_UNDER_DISCUSSION"
+    }, headers=headers_ind)
+    # University: PROPOSAL_UNDER_DISCUSSION → SUPPORT_CONFIRMED
+    step_i3 = client.post(f"/api/industry/proposals/{req_id}/update-status", json={
+        "status": "SUPPORT_CONFIRMED"
+    }, headers=headers_univ_a)
+    # Industry: SUPPORT_CONFIRMED → FUNDING_CONFIRMED
+    step_i4 = client.post(f"/api/industry/proposals/{req_id}/update-status", json={
+        "status": "FUNDING_CONFIRMED",
+        "pledged_amount": "₹12,00,000",
+        "proposal_summary": "CSR Co-funding agreement finalized between BIT Mesra and Tata Steel CSR."
+    }, headers=headers_ind)
+    # Industry: FUNDING_CONFIRMED → PROJECT_FUNDED (triggers Challenge → COMPLETED)
+    step_i5 = client.post(f"/api/industry/proposals/{req_id}/update-status", json={
+        "status": "PROJECT_FUNDED"
+    }, headers=headers_ind)
 
-    assert_test("15. Admin accepts Industry request -> Industry Request ACCEPTED", ind_admin_res.status_code == 200 and ind_admin_res.json().get("status") == "ACCEPTED", ind_admin_res.text)
+    assert_test("15. Full proposal pipeline → final status PROJECT_FUNDED",
+                step_i5.status_code == 200 and step_i5.json().get("status") == "PROJECT_FUNDED",
+                step_i5.text)
 
-    # Step J: Verify Challenge final status is COMPLETED
+    # Step J: Verify Challenge final status is COMPLETED (triggered by PROJECT_FUNDED)
     ch_final_res = client.get(f"/api/challenges/{short_id}")
     final_status = ch_final_res.json().get("status") if ch_final_res.status_code == 200 else ""
-    assert_test("16. Challenge final status becomes COMPLETED (Problem Resolved)", final_status == "COMPLETED", f"Status: {final_status}")
+    assert_test("16. Challenge final status becomes COMPLETED (Problem Resolved)",
+                final_status == "COMPLETED", f"Status: {final_status}")
 
     # Step K: Query Workflow (Citizen asks -> Admin responds)
     q_create_res = client.post("/api/queries/", json={

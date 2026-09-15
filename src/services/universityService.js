@@ -40,8 +40,14 @@ export async function configureTeam(challengeId, payload) {
   return data;
 }
 
-export async function requestIndustrySupport(challengeId, payload) {
-  const { data } = await api.post(`/universities/challenges/${challengeId}/request-industry-support`, payload);
+/**
+ * University action: signals this validated solution is seeking industry funding.
+ * Sets ChallengeStatus → INDUSTRY_SUPPORT_REQUESTED on the backend.
+ * Does NOT create an IndustryInterest record — that only happens when
+ * a real Industry user calls expressInterest().
+ */
+export async function seekIndustrySupport(challengeId) {
+  const { data } = await api.post(`/universities/challenges/${challengeId}/seek-industry-support`);
   return data;
 }
 

@@ -18,7 +18,6 @@ import {
   getPendingSolutions,
   reviewSolution,
   getIndustryRequests,
-  reviewIndustryRequest,
   getAdminStats,
   approveChallenge,
   rejectChallenge,
@@ -45,8 +44,8 @@ const SEEDED_UNIVERSITIES = [
 
 const getEvidenceImageUrl = (filename) => {
   if (!filename) return '';
-  const token = localStorage.getItem('samadhan_token');
-  const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+  const token = sessionStorage.getItem('samadhan_token');
+  const baseUrl = import.meta.env.VITE_API_URL || '';
   return `${baseUrl}/api/uploads/${filename}${token ? `?token=${encodeURIComponent(token)}` : ''}`;
 };
 
@@ -373,7 +372,7 @@ export const AdminAnalyticsPage = () => {
                     }`}
                   >
                     <Building2 className="w-3.5 h-3.5" />
-                    <span>Industry Support Oversight ({industryRequests.length})</span>
+                    <span>Industry Partnerships [READ-ONLY] ({industryRequests.length})</span>
                   </button>
                 </div>
 
@@ -612,33 +611,135 @@ export const AdminAnalyticsPage = () => {
                   </div>
                 )}
 
-                {/* SUB-TAB 4: INDUSTRY SUPPORT OVERSIGHT */}
-                {pipelineSubTab === 'industry' && (
-                  <div className="space-y-4">
-                    <h3 className="text-base font-bold text-white">Corporate CSR Industry Funding Oversight</h3>
-                    <div className="divide-y divide-slate-800 bg-slate-900/90 border border-slate-800 rounded-3xl overflow-hidden">
+                {/* SUB-TAB 4: INDUSTRY SUPPORT OVERSIGHT — READ-ONLY */}
+                {pipelineSubTab === 'industry' && (() => {
+                  // Build challenge lookup from already-fetched lists to resolve project title + university
+                  const allFetchedChallenges = [
+                    ...pendingChallenges,
+                    ...approvedChallenges,
+                    ...assignedChallenges,
+                  ];
+                  const challengeMap = {};
+                  allFetchedChallenges.forEach(ch => {
+                    const key = String(ch.id);
+                    if (!challengeMap[key]) {
+                      challengeMap[key] = {
+                        title: ch.title,
+                        short_id: ch.short_id || ch.id,
+                        university_name:
+                          ch.assignment?.university_name ||
+                          ch.assigned_university_name ||
+                          null,
+                      };
+                    }
+                  });
+
+                  return (
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h3 className="text-base font-bold text-white">Corporate CSR &amp; Industry Partnership Oversight</h3>
+                          <p className="text-xs text-slate-400 mt-0.5">
+                            Read-only governance monitoring of industry funding interests, proposal stages, and support confirmations.
+                            <strong className="text-amber-300 ml-1">Admin has no Accept/Decline action — partnerships are negotiated directly between University and Industry.</strong>
+                          </p>
+                        </div>
+                        <span className="px-3 py-1 rounded-full bg-slate-800 text-slate-400 border border-slate-700 text-xs font-bold shrink-0 ml-4">
+                          👁 READ-ONLY MONITORING
+                        </span>
+                      </div>
+
                       {industryRequests.length === 0 ? (
-                        <div className="p-8 text-center text-xs text-slate-500">No industry support requests recorded.</div>
+                        <div className="py-12 px-6 text-center space-y-3 bg-slate-900/40 border border-slate-800 rounded-3xl">
+                          <Building2 className="w-10 h-10 text-slate-500 mx-auto" />
+                          <h4 className="text-sm font-bold text-white">No Industry Partnership Records</h4>
+                          <p className="text-xs text-slate-400">
+                            Industry partnerships appear here once an Industry user expresses interest in a university solution that is INDUSTRY_SUPPORT_REQUESTED.
+                          </p>
+                        </div>
                       ) : (
-                        industryRequests.map(req => (
-                          <div key={req.id} className="p-5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-                            <div className="space-y-1">
-                              <div className="flex items-center gap-2">
-                                <span className="font-bold text-white text-sm">{req.company_name}</span>
-                                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-800 text-teal-300 border border-slate-700">
-                                  {req.status}
-                                </span>
-                              </div>
-                              <p className="text-xs text-slate-300">Support Offered: <strong>{req.support_type}</strong></p>
-                              <span className="text-[11px] text-slate-400">Contact: {req.contact_email}</span>
-                            </div>
-                            <span className="text-xs font-bold text-emerald-400">{req.pledged_amount || 'Grant Support'}</span>
+                        <div className="rounded-3xl bg-slate-900/90 border border-slate-800 overflow-hidden shadow-2xl">
+                          <div className="overflow-x-auto">
+                            <table className="w-full text-left text-xs text-slate-300">
+                              <thead className="bg-slate-950 text-slate-400 font-bold uppercase tracking-wider text-[10px] border-b border-slate-800">
+                                <tr>
+                                  <th className="p-4">Project</th>
+                                  <th className="p-4">University</th>
+                                  <th className="p-4">Industry Partner</th>
+                                  <th className="p-4">Proposal Stage</th>
+                                  <th className="p-4">Support Type</th>
+                                  <th className="p-4">Pledged Amount</th>
+                                  <th className="p-4">Submitted</th>
+                                  <th className="p-4">Confirmed</th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-slate-800/60">
+                                {industryRequests.map(req => {
+                                  const chInfo = challengeMap[String(req.challenge_id)] || {};
+                                  return (
+                                    <tr key={req.id} className="hover:bg-slate-800/30 transition-colors">
+                                      <td className="p-4 max-w-[180px]">
+                                        {chInfo.title ? (
+                                          <>
+                                            <div
+                                              onClick={() => navigate(`/project/${chInfo.short_id}`)}
+                                              className="font-bold text-white truncate cursor-pointer hover:text-indigo-300 transition-colors"
+                                              title={chInfo.title}
+                                            >
+                                              {chInfo.title}
+                                            </div>
+                                            <div className="font-mono text-[10px] text-amber-400 mt-0.5">{chInfo.short_id}</div>
+                                          </>
+                                        ) : (
+                                          <span className="text-slate-500 italic text-[11px] font-mono">{String(req.challenge_id).slice(0, 8)}...</span>
+                                        )}
+                                      </td>
+                                      <td className="p-4">
+                                        {chInfo.university_name ? (
+                                          <span className="font-semibold text-indigo-300">{chInfo.university_name}</span>
+                                        ) : (
+                                          <span className="text-slate-500 italic text-[11px]">—</span>
+                                        )}
+                                      </td>
+                                      <td className="p-4">
+                                        <div className="font-bold text-white">{req.company_name}</div>
+                                        <div className="text-[10px] text-slate-500 mt-0.5">{req.contact_email}</div>
+                                      </td>
+                                      <td className="p-4">
+                                        <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold border whitespace-nowrap ${
+                                          req.status === 'INTEREST_EXPRESSED'        ? 'bg-indigo-500/20 text-indigo-300 border-indigo-500/30' :
+                                          req.status === 'PROPOSAL_INITIATED'        ? 'bg-amber-500/20 text-amber-300 border-amber-500/30' :
+                                          req.status === 'PROPOSAL_UNDER_DISCUSSION' ? 'bg-orange-500/20 text-orange-300 border-orange-500/30' :
+                                          req.status === 'SUPPORT_CONFIRMED'         ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30' :
+                                          req.status === 'FUNDING_CONFIRMED'         ? 'bg-teal-500/20 text-teal-300 border-teal-500/30' :
+                                          req.status === 'PROJECT_FUNDED'            ? 'bg-green-500/20 text-green-300 border-green-500/30' :
+                                          req.status === 'DECLINED'                  ? 'bg-rose-500/20 text-rose-300 border-rose-500/30' :
+                                          'bg-slate-700 text-slate-400 border-slate-600'
+                                        }`}>
+                                          {req.status?.replace(/_/g, ' ')}
+                                        </span>
+                                      </td>
+                                      <td className="p-4 text-slate-200">{req.support_type || '—'}</td>
+                                      <td className="p-4 font-bold text-emerald-400">{req.pledged_amount || '—'}</td>
+                                      <td className="p-4 text-slate-400 whitespace-nowrap">
+                                        {req.created_at ? new Date(req.created_at).toLocaleDateString() : '—'}
+                                      </td>
+                                      <td className="p-4 text-slate-400 whitespace-nowrap">
+                                        {req.confirmed_at ? (
+                                          <span className="text-emerald-400 font-semibold">{new Date(req.confirmed_at).toLocaleDateString()}</span>
+                                        ) : '—'}
+                                      </td>
+                                    </tr>
+                                  );
+                                })}
+                              </tbody>
+                            </table>
                           </div>
-                        ))
+                        </div>
                       )}
                     </div>
-                  </div>
-                )}
+                  );
+                })()}
 
               </motion.div>
             )}

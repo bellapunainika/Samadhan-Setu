@@ -1,7 +1,9 @@
 /**
  * src/services/adminService.js
  *
- * Frontend API service for Stage 3 Admin Governance endpoints.
+ * Frontend API service for Admin Governance endpoints.
+ * NOTE: reviewIndustryRequest has been removed — Admin has NO Accept/Decline
+ * action for commercial funding agreements. Admin is READ-ONLY for industry partnerships.
  */
 import api from './api';
 
@@ -35,13 +37,9 @@ export async function reviewSolution(id, action, feedback) {
   return data;
 }
 
+/** Read-only monitoring view of all industry partnership records. No Accept/Decline. */
 export async function getIndustryRequests() {
   const { data } = await api.get('/admin/industry-requests');
-  return data;
-}
-
-export async function reviewIndustryRequest(requestId, action, response) {
-  const { data } = await api.post(`/admin/industry-requests/${requestId}/review`, { action, response });
   return data;
 }
 

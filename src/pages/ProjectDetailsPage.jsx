@@ -16,8 +16,8 @@ import { approveChallenge, rejectChallenge, overrideAi, assignUniversity, review
 
 const getEvidenceImageUrl = (filename) => {
   if (!filename) return '';
-  const token = localStorage.getItem('samadhan_token');
-  const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+  const token = sessionStorage.getItem('samadhan_token');
+  const baseUrl = import.meta.env.VITE_API_URL || '';
   return `${baseUrl}/api/uploads/${filename}${token ? `?token=${encodeURIComponent(token)}` : ''}`;
 };
 
