@@ -28,65 +28,65 @@ depends_on = None
 
 def upgrade() -> None:
     # ── Step 1: Add INDUSTRY_SUPPORT_REQUESTED to challengestatus ──────────
-    # ALTER TYPE ... ADD VALUE cannot run inside a transaction on older PG.
-    # We execute it directly; Alembic handles autocommit for DDL on most setups.
     op.execute(
         "ALTER TYPE challengestatus ADD VALUE IF NOT EXISTS 'INDUSTRY_SUPPORT_REQUESTED'"
     )
 
-    # ── Step 2: Recreate industryintereststatus enum ───────────────────────
-    # Postgres does not support DROP VALUE from an enum, so we must:
-    #   a. Rename the old enum
-    #   b. Create the new enum with correct values
-    #   c. ALTER the column to use the new enum (with CASE migration)
-    #   d. Drop the old enum
-
-    # a. Rename old enum
-    op.execute("ALTER TYPE industryintereststatus RENAME TO industryintereststatus_old")
-
-    # b. Create new enum
+    # ── Step 2: Safe Enum Creation / Migration ─────────────────────────────
     op.execute("""
-        CREATE TYPE industryintereststatus AS ENUM (
-            'INTEREST_EXPRESSED',
-            'PROPOSAL_INITIATED',
-            'PROPOSAL_UNDER_DISCUSSION',
-            'SUPPORT_CONFIRMED',
-            'FUNDING_CONFIRMED',
-            'PROJECT_FUNDED',
-            'DECLINED',
-            'WITHDRAWN'
-        )
-    """)
+        DO $$
+        BEGIN
+            IF EXISTS (SELECT 1 FROM pg_type WHERE typname = 'industryintereststatus') THEN
+                ALTER TYPE industryintereststatus RENAME TO industryintereststatus_old;
 
-    # c. Migrate column data and change type
-    op.execute("""
-        ALTER TABLE industry_interests
-        ALTER COLUMN status TYPE industryintereststatus
-        USING (
-            CASE status::text
-                WHEN 'FUNDING_INTEREST'       THEN 'INTEREST_EXPRESSED'::industryintereststatus
-                WHEN 'PENDING_ADMIN_REVIEW'   THEN 'INTEREST_EXPRESSED'::industryintereststatus
-                WHEN 'ACCEPTED'               THEN 'SUPPORT_CONFIRMED'::industryintereststatus
-                WHEN 'INTEREST_EXPRESSED'     THEN 'INTEREST_EXPRESSED'::industryintereststatus
-                WHEN 'PROPOSAL_INITIATED'     THEN 'PROPOSAL_INITIATED'::industryintereststatus
-                WHEN 'PROPOSAL_UNDER_DISCUSSION' THEN 'PROPOSAL_UNDER_DISCUSSION'::industryintereststatus
-                WHEN 'SUPPORT_CONFIRMED'      THEN 'SUPPORT_CONFIRMED'::industryintereststatus
-                WHEN 'FUNDING_CONFIRMED'      THEN 'FUNDING_CONFIRMED'::industryintereststatus
-                WHEN 'PROJECT_FUNDED'         THEN 'PROJECT_FUNDED'::industryintereststatus
-                WHEN 'DECLINED'               THEN 'DECLINED'::industryintereststatus
-                WHEN 'WITHDRAWN'              THEN 'WITHDRAWN'::industryintereststatus
-                ELSE                               'INTEREST_EXPRESSED'::industryintereststatus
-            END
-        )
-    """)
+                CREATE TYPE industryintereststatus AS ENUM (
+                    'INTEREST_EXPRESSED',
+                    'PROPOSAL_INITIATED',
+                    'PROPOSAL_UNDER_DISCUSSION',
+                    'SUPPORT_CONFIRMED',
+                    'FUNDING_CONFIRMED',
+                    'PROJECT_FUNDED',
+                    'DECLINED',
+                    'WITHDRAWN'
+                );
 
-    # d. Drop old enum
-    op.execute("DROP TYPE industryintereststatus_old")
+                IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'industry_interests') THEN
+                    ALTER TABLE industry_interests
+                    ALTER COLUMN status TYPE industryintereststatus
+                    USING (
+                        CASE status::text
+                            WHEN 'FUNDING_INTEREST'       THEN 'INTEREST_EXPRESSED'::industryintereststatus
+                            WHEN 'PENDING_ADMIN_REVIEW'   THEN 'INTEREST_EXPRESSED'::industryintereststatus
+                            WHEN 'ACCEPTED'               THEN 'SUPPORT_CONFIRMED'::industryintereststatus
+                            WHEN 'INTEREST_EXPRESSED'     THEN 'INTEREST_EXPRESSED'::industryintereststatus
+                            WHEN 'PROPOSAL_INITIATED'     THEN 'PROPOSAL_INITIATED'::industryintereststatus
+                            WHEN 'PROPOSAL_UNDER_DISCUSSION' THEN 'PROPOSAL_UNDER_DISCUSSION'::industryintereststatus
+                            WHEN 'SUPPORT_CONFIRMED'      THEN 'SUPPORT_CONFIRMED'::industryintereststatus
+                            WHEN 'FUNDING_CONFIRMED'      THEN 'FUNDING_CONFIRMED'::industryintereststatus
+                            WHEN 'PROJECT_FUNDED'         THEN 'PROJECT_FUNDED'::industryintereststatus
+                            WHEN 'DECLINED'               THEN 'DECLINED'::industryintereststatus
+                            WHEN 'WITHDRAWN'              THEN 'WITHDRAWN'::industryintereststatus
+                            ELSE                               'INTEREST_EXPRESSED'::industryintereststatus
+                        END
+                    );
+                    ALTER TABLE industry_interests
+                    ALTER COLUMN status SET DEFAULT 'INTEREST_EXPRESSED'::industryintereststatus;
+                END IF;
 
-    # e. Also update the DEFAULT on the column to match new enum value
-    op.execute("""
-        ALTER TABLE industry_interests
-        ALTER COLUMN status SET DEFAULT 'INTEREST_EXPRESSED'::industryintereststatus
+                DROP TYPE industryintereststatus_old;
+            ELSE
+                CREATE TYPE industryintereststatus AS ENUM (
+                    'INTEREST_EXPRESSED',
+                    'PROPOSAL_INITIATED',
+                    'PROPOSAL_UNDER_DISCUSSION',
+                    'SUPPORT_CONFIRMED',
+                    'FUNDING_CONFIRMED',
+                    'PROJECT_FUNDED',
+                    'DECLINED',
+                    'WITHDRAWN'
+                );
+            END IF;
+        END $$;
     """)
 
 
