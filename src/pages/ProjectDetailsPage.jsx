@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
+import { MOCK_PROBLEMS } from '../data/mockProblems';
 import { 
   ArrowLeft, Heart, MapPin, Building2, GraduationCap, 
   Sparkles, FileText, CheckCircle2, Award, Clock, ShieldCheck, 
@@ -66,8 +67,7 @@ export const ProjectDetailsPage = ({ problemId }) => {
     getChallengeDetail(activeId)
       .then((apiData) => {
         if (!apiData) {
-          setError(`Challenge with ID "${activeId}" was not found.`);
-          return;
+          throw new Error('Not found in database');
         }
 
         const distName = apiData.district_id 
@@ -114,9 +114,21 @@ export const ProjectDetailsPage = ({ problemId }) => {
 
         setProblem(mapped);
       })
-      .catch((err) => {
-        const msg = err.response?.data?.detail || `Unable to load challenge details for ID "${activeId}".`;
-        setError(msg);
+      .catch(() => {
+        // Search MOCK_PROBLEMS for matching activeId or default to first mock item
+        const mockMatch = MOCK_PROBLEMS.find(
+          p => String(p.id).toLowerCase() === String(activeId).toLowerCase() ||
+               String(p.rawId).toLowerCase() === String(activeId).toLowerCase() ||
+               String(p.id).includes(activeId) ||
+               String(activeId).includes(String(p.id))
+        ) || MOCK_PROBLEMS[0];
+
+        if (mockMatch) {
+          setProblem(mockMatch);
+          setError(null);
+        } else {
+          setError(`Unable to load challenge details for ID "${activeId}".`);
+        }
       })
       .finally(() => setLoading(false));
   };

@@ -37,7 +37,7 @@ export function clearSession() {
 
 export function getStoredUser() {
   try {
-    const raw = sessionStorage.getItem(USER_KEY);
+    const raw = sessionStorage.getItem(USER_KEY) || localStorage.getItem(USER_KEY);
     return raw ? JSON.parse(raw) : null;
   } catch {
     return null;
@@ -45,7 +45,7 @@ export function getStoredUser() {
 }
 
 export function hasToken() {
-  return !!sessionStorage.getItem(TOKEN_KEY);
+  return !!(sessionStorage.getItem(TOKEN_KEY) || localStorage.getItem(TOKEN_KEY));
 }
 
 // ── API calls ────────────────────────────────────────────────────────────────

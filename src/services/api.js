@@ -18,7 +18,7 @@ const api = axios.create({
 // ── Request interceptor — attach JWT ────────────────────────────────────────
 api.interceptors.request.use(
   (config) => {
-    const token = sessionStorage.getItem('samadhan_token');
+    const token = sessionStorage.getItem('samadhan_token') || localStorage.getItem('samadhan_token');
     if (token) {
       config.headers['Authorization'] = `Bearer ${token}`;
     }

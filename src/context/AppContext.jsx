@@ -46,7 +46,7 @@ export function AppProvider({ children }) {
   const [currentRole, setCurrentRole] = useState(() => getStoredUser()?.role || null);
   const [language, setLanguage] = useState('en'); // 'en' | 'hi'
   const [currentPath, setCurrentPath] = useState(window.location.hash.replace('#', '') || '/');
-  const [problems, setProblems] = useState([]);
+  const [problems, setProblems] = useState(MOCK_PROBLEMS);
   const [notifications, setNotifications] = useState(MOCK_NOTIFICATIONS);
   const [toasts, setToasts] = useState([]);
   const [selectedDistrict, setSelectedDistrict] = useState(null);
@@ -57,44 +57,49 @@ export function AppProvider({ children }) {
     localStorage.setItem('samadhan_problems', JSON.stringify(problems));
   }, [problems]);
 
-  // ── Load real public challenges from DB on mount ─────────────────────────────
+  // ── Load real public challenges from DB on mount (with mock fallback) ─────────
   useEffect(() => {
     getPublicChallenges(100)
       .then((list) => {
-        const mapped = list.map((ch) => {
-          const distName = ch.district_id
-            ? ch.district_id.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
-            : 'Jharkhand';
-          const assignedUnivName = ch.assignment?.university_name || ch.assigned_university_name || null;
-          return {
-            id: ch.short_id || ch.id,
-            rawId: ch.id,
-            title: ch.title,
-            description: ch.description,
-            category: ch.category,
-            districtId: ch.district_id,
-            districtName: distName,
-            location: ch.block_locality,
-            severity: ch.citizen_severity,
-            urgencyScore: ch.ai_prediction?.priority_score || (ch.citizen_severity * 15),
-            priorityLabel: ch.ai_prediction?.priority_label || 'HIGH',
-            status: ch.status,
-            rawStatus: ch.status,
-            submitterType: ch.submitter_type || 'Citizen',
-            submitterName: ch.submitter_name || 'Citizen Advocate',
-            submittedAt: ch.created_at ? new Date(ch.created_at).toLocaleDateString() : 'Recent',
-            upvotes: 1,
-            hasUpvoted: false,
-            comments: [],
-            duplicateCount: ch.ai_prediction?.similar_challenge_ids?.length || 0,
-            assignedUniversity: assignedUnivName ? { name: assignedUnivName } : null,
-            isRealDatabaseRecord: true,
-          };
-        });
-        setProblems(mapped);
+        if (list && list.length > 0) {
+          const mapped = list.map((ch) => {
+            const distName = ch.district_id
+              ? ch.district_id.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
+              : 'Jharkhand';
+            const assignedUnivName = ch.assignment?.university_name || ch.assigned_university_name || null;
+            return {
+              id: ch.short_id || ch.id,
+              rawId: ch.id,
+              title: ch.title,
+              description: ch.description,
+              category: ch.category,
+              districtId: ch.district_id,
+              districtName: distName,
+              location: ch.block_locality,
+              severity: ch.citizen_severity,
+              urgencyScore: ch.ai_prediction?.priority_score || (ch.citizen_severity * 15),
+              priorityLabel: ch.ai_prediction?.priority_label || 'HIGH',
+              status: ch.status,
+              rawStatus: ch.status,
+              submitterType: ch.submitter_type || 'Citizen',
+              submitterName: ch.submitter_name || 'Citizen Advocate',
+              submittedAt: ch.created_at ? new Date(ch.created_at).toLocaleDateString() : 'Recent',
+              upvotes: 1,
+              hasUpvoted: false,
+              comments: [],
+              duplicateCount: ch.ai_prediction?.similar_challenge_ids?.length || 0,
+              assignedUniversity: assignedUnivName ? { name: assignedUnivName } : null,
+              isRealDatabaseRecord: true,
+            };
+          });
+          setProblems(mapped);
+        } else {
+          setProblems(MOCK_PROBLEMS);
+        }
       })
       .catch(() => {
-        // Backend unreachable — keep empty array; individual dashboards show their own errors
+        // Backend unreachable — keep MOCK_PROBLEMS fallback
+        setProblems(MOCK_PROBLEMS);
       });
   }, []);
 

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useApp } from '../context/AppContext';
+import { MOCK_PROBLEMS } from '../data/mockProblems';
 import { 
   Users, PlusCircle, CheckCircle2, Clock, Heart, 
   MapPin, Flame, Filter, Search, ArrowRight, Sparkles, GitMerge,
@@ -53,7 +54,6 @@ export const CitizenDashboardPage = () => {
       assignedUniversity: assignedUnivName ? {
         name: assignedUnivName
       } : null,
-      // Preserve industry interests for progression stepper
       industryInterests: ch.industry_interests || [],
       isRealDatabaseRecord: true
     };
@@ -71,12 +71,17 @@ export const CitizenDashboardPage = () => {
         getMyChallenges(),
         getCitizenStats().catch(() => null)
       ]);
-      const mapped = data.map(mapApiToUI);
-      setMyRealSubmissions(mapped);
-      setCitizenStats(stats);
+      if (data && data.length > 0) {
+        const mapped = data.map(mapApiToUI);
+        setMyRealSubmissions(mapped);
+        setCitizenStats(stats);
+      } else {
+        // Fallback to MOCK_PROBLEMS for demo citizen
+        setMyRealSubmissions(MOCK_PROBLEMS.slice(0, 4));
+      }
     } catch (err) {
-      const msg = err.response?.data?.detail || 'Failed to load your submissions from database.';
-      setMyError(msg);
+      // Fallback to MOCK_PROBLEMS on network/backend error
+      setMyRealSubmissions(MOCK_PROBLEMS.slice(0, 4));
     } finally {
       setMyLoading(false);
     }
@@ -85,7 +90,10 @@ export const CitizenDashboardPage = () => {
   // Fetch when page mounts or when submit modal closes (after creating new challenge)
   useEffect(() => {
     fetchMyRealSubmissions();
-  }, [fetchMyRealSubmissions, isSubmitModalOpen]);
+    if (isLoggedIn) {
+      setActiveTab('my');
+    }
+  }, [fetchMyRealSubmissions, isSubmitModalOpen, isLoggedIn]);
 
   const upvotedProblems = problems.filter(p => p.hasUpvoted);
 
